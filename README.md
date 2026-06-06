@@ -6,6 +6,8 @@ A minimalistic, dark-themed desktop chat interface that connects to any OpenAI-c
 
 ![Mimir screenshot](screenshot.png)
 
+> **PSA:** This project is 100% vibe coded — I'm using it as a test project to explore what vibe coding can do. If you're here from the future and this is somehow popular, please manage your expectations accordingly. 🍃
+
 ## Features
 
 - **Chat interface** — stream responses from any OpenAI-compatible API endpoint
