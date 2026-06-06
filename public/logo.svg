@@ -1,0 +1,122 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f0c674"/>
+      <stop offset="40%" stop-color="#d4a345"/>
+      <stop offset="100%" stop-color="#b8862a"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#1a1625"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </linearGradient>
+    <linearGradient id="innerGlow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0c674" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#b8862a" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Inner glow -->
+  <circle cx="256" cy="256" r="180" fill="url(#innerGlow)"/>
+
+  <!-- Outer rings -->
+  <circle cx="256" cy="256" r="215" fill="none" stroke="#d4a345" stroke-width="2" opacity="0.3"/>
+  <circle cx="256" cy="256" r="206" fill="none" stroke="#d4a345" stroke-width="1" opacity="0.15"/>
+
+  <!-- Runic border marks -->
+  <g stroke="#d4a345" stroke-width="3" stroke-linecap="round" opacity="0.45">
+    <line x1="256" y1="41" x2="256" y2="54"/>
+    <line x1="256" y1="458" x2="256" y2="471"/>
+    <line x1="41" y1="256" x2="54" y2="256"/>
+    <line x1="458" y1="256" x2="471" y2="256"/>
+    <line x1="92" y1="92" x2="101" y2="101"/>
+    <line x1="420" y1="92" x2="411" y2="101"/>
+    <line x1="92" y1="420" x2="101" y2="411"/>
+    <line x1="420" y1="420" x2="411" y2="411"/>
+  </g>
+
+  <!-- Vegvísir / Helm of Awe - 8 arms using rotate transform -->
+  <g stroke="#d4a345" stroke-width="6" stroke-linecap="round" fill="none">
+    <!-- 0° (North) -->
+    <g transform="translate(256,256) rotate(0)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 45° -->
+    <g transform="translate(256,256) rotate(45)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 90° (East) -->
+    <g transform="translate(256,256) rotate(90)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 135° -->
+    <g transform="translate(256,256) rotate(135)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 180° (South) -->
+    <g transform="translate(256,256) rotate(180)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 225° -->
+    <g transform="translate(256,256) rotate(225)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 270° (West) -->
+    <g transform="translate(256,256) rotate(270)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+    <!-- 315° -->
+    <g transform="translate(256,256) rotate(315)">
+      <line x1="0" y1="-68" x2="0" y2="-196"/>
+      <line x1="0" y1="-196" x2="-22" y2="-166"/>
+      <line x1="0" y1="-196" x2="22" y2="-166"/>
+      <line x1="-16" y1="-128" x2="16" y2="-128"/>
+    </g>
+  </g>
+
+  <!-- Central well (Mímisbrunnr) -->
+  <circle cx="256" cy="256" r="65" fill="none" stroke="url(#gold)" stroke-width="4.5"/>
+  <circle cx="256" cy="256" r="50" fill="none" stroke="#d4a345" stroke-width="2" opacity="0.45"/>
+  <circle cx="256" cy="256" r="35" fill="none" stroke="#d4a345" stroke-width="1" opacity="0.25"/>
+
+  <!-- Water surface -->
+  <path d="M 218 270 Q 237 255 256 270 Q 275 285 294 270" fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round"/>
+  <path d="M 226 286 Q 241 276 256 286 Q 271 296 286 286" fill="none" stroke="#d4a345" stroke-width="2.5" stroke-linecap="round" opacity="0.45"/>
+  <path d="M 234 300 Q 245 293 256 300 Q 267 307 278 300" fill="none" stroke="#d4a345" stroke-width="1.5" stroke-linecap="round" opacity="0.25"/>
+
+  <!-- Wisdom eye above -->
+  <ellipse cx="256" cy="200" rx="6" ry="9" fill="url(#gold)"/>
+
+  <!-- Mannaz rune (ᛗ) -->
+  <polyline points="238,242 250,222 256,242 262,222 274,242" fill="none" stroke="url(#gold)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Flanking Algiz runes (ᛉ) -->
+  <g stroke="#d4a345" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.4">
+    <line x1="150" y1="232" x2="150" y2="280"/>
+    <line x1="150" y1="232" x2="166" y2="248"/>
+    <line x1="362" y1="232" x2="362" y2="280"/>
+    <line x1="362" y1="232" x2="346" y2="248"/>
+  </g>
+</svg>
