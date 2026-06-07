@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2 } from 'lucide-react'
 import type { Crawl4AIStatus, Settings } from '../types'
 
@@ -285,6 +285,18 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
 function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate: (key: SettingKey, value: string | number | boolean) => void }) {
   const [status, setStatus] = useState<Crawl4AIStatus | null>(null)
   const [starting, setStarting] = useState(false)
+  const [endpointOk, setEndpointOk] = useState<boolean | null>(null)
+
+  const checkEndpoint = useCallback(async (ep: string) => {
+    if (!ep) { setEndpointOk(null); return }
+    try {
+      const url = ep.replace(/\/+$/, '')
+      await fetch(url, { method: 'POST', signal: AbortSignal.timeout(5000) })
+      setEndpointOk(true)
+    } catch {
+      setEndpointOk(false)
+    }
+  }, [])
 
   const check = async () => {
     if (window.electronAPI?.crawl4ai) {
@@ -306,6 +318,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
 
   useEffect(() => {
     check()
+    checkEndpoint(settings.crawl4aiEndpoint)
     const t = setInterval(check, 10000)
     return () => clearInterval(t)
   }, [settings.crawl4aiEndpoint])
@@ -347,10 +360,18 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </span>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <input type="text" value={settings.crawl4aiEndpoint}
-                   onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
-                   placeholder="http://localhost:8000"
-                   className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+            <div className="flex items-center gap-2">
+              <input type="text" value={settings.crawl4aiEndpoint}
+                     onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
+                     placeholder="http://localhost:8000"
+                     className="mt-0.5 flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+              {endpointOk !== null && (
+                <span className={`mt-0.5 flex shrink-0 items-center gap-1 text-[10px] ${endpointOk ? 'text-primary/70' : 'text-destructive/70'}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
+                  {endpointOk ? 'Reachable' : 'Unreachable'}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div className="mx-4 h-px bg-border" />
