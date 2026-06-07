@@ -1,4 +1,5 @@
 export interface Settings {
+  theme: string
   apiEndpoint: string
   apiKey: string
   model: string

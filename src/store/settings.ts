@@ -1,6 +1,7 @@
 import type { Settings } from '../types'
 
 export const defaultSettings: Settings = {
+  theme: 'emerald',
   apiEndpoint: 'http://localhost:11434/v1',
   apiKey: '',
   model: '',

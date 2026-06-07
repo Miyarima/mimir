@@ -53,18 +53,28 @@ export default function App() {
     saveSettings(settings)
   }, [settings])
 
+  useEffect(() => {
+    document.documentElement.className = settings.theme === 'emerald' ? '' : `theme-${settings.theme}`
+  }, [settings.theme])
+
   const checkConnection = useCallback(async () => {
     if (!settings.apiEndpoint) { setConnectionStatus('disconnected'); return }
     setConnectionStatus('checking')
-    try {
-      const res = await fetch(settings.apiEndpoint.replace(/\/+$/, '') + '/models', {
-        signal: AbortSignal.timeout(5000),
-        headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
-      })
-      setConnectionStatus(res.ok ? 'connected' : 'disconnected')
-    } catch {
-      setConnectionStatus('disconnected')
+    const base = settings.apiEndpoint.replace(/\/+$/, '')
+    const urls = base.includes('/v1')
+      ? [`${base}/models`, base.replace(/\/v1.*/, '')]
+      : [`${base}/models`, `${base}/v1/models`, base]
+    let ok = false
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(5000),
+          headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
+        })
+        if (res.ok || res.status !== 0) { ok = true; break }
+      } catch {}
     }
+    setConnectionStatus(ok ? 'connected' : 'disconnected')
   }, [settings.apiEndpoint, settings.apiKey])
 
   useEffect(() => {
@@ -83,33 +93,36 @@ export default function App() {
           try {
             const parsed: Conversation[] = JSON.parse(stored)
             setConversations(parsed)
-            setActiveId(parsed[0]?.id || createConversation().id)
+            setDraftId(generateId())
             setReady(true)
             return
           } catch {}
         }
-        const conv = createConversation()
-        setConversations([conv])
-        setActiveId(conv.id)
-        setReady(true)
-        return
-      }
-
-      const rows = await window.electronAPI.db.loadConversations()
-
-      if (rows.length === 0) {
-        const conv = createConversation()
-        await window.electronAPI.db.createConversation({ id: conv.id, title: conv.title, isResearch: false })
-        setConversations([conv])
-        setActiveId(conv.id)
       } else {
-        const loaded: Conversation[] = await Promise.all(rows.map(async (r) => {
-          const messages = await window.electronAPI.db!.loadMessages(r.id)
-          return { ...r, messages }
-        }))
-        setConversations(loaded)
-        setActiveId(loaded[0].id)
+        const rows = await window.electronAPI.db.loadConversations()
+
+        if (rows.length > 0) {
+          const loaded: Conversation[] = await Promise.all(rows.map(async (r) => {
+            const messages = await window.electronAPI.db!.loadMessages(r.id)
+            return { ...r, messages }
+          }))
+
+          // Restore researchResult from localStorage (not stored in DB)
+          try {
+            const stored = localStorage.getItem('mimir-conversations')
+            if (stored) {
+              const parsed: Conversation[] = JSON.parse(stored)
+              for (const conv of loaded) {
+                const match = parsed.find(c => c.id === conv.id)
+                if (match?.researchResult) conv.researchResult = match.researchResult
+              }
+            }
+          } catch {}
+
+          setConversations(loaded)
+        }
       }
+      setDraftId(generateId())
       setReady(true)
     }
     init()
@@ -125,6 +138,22 @@ export default function App() {
 
   const activeConv = conversations.find(c => c.id === activeId)
   const activeResearch = activeId ? researchRuns[activeId] : undefined
+  const displayResearch: ResearchRun | undefined = activeResearch || (
+    activeConv?.isResearch && activeConv?.researchResult
+      ? {
+          question: activeConv.researchResult.question,
+          breadth: settings.researchBreadth,
+          depth: settings.researchDepth,
+          steps: activeConv.researchResult.steps,
+          progress: null,
+          liveResults: [],
+          serpQueries: [],
+          report: activeConv.researchResult.report,
+          loading: false,
+          error: null,
+        }
+      : undefined
+  )
 
   const persistConversation = useCallback(async (conv: Conversation) => {
     if (!window.electronAPI?.db) return
@@ -434,19 +463,19 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             onUpdate={setSettings}
             onClose={() => setShowSettings(false)}
           />
-        ) : activeResearch ? (
+        ) : displayResearch ? (
           <ResearchView
-            question={activeResearch.question}
+            question={displayResearch.question}
             settings={settings}
-            breadth={activeResearch.breadth}
-            depth={activeResearch.depth}
-            steps={activeResearch.steps}
-            progress={activeResearch.progress}
-            liveResults={activeResearch.liveResults}
-            serpQueries={activeResearch.serpQueries}
-            report={activeResearch.report}
-            loading={activeResearch.loading}
-            error={activeResearch.error}
+            breadth={displayResearch.breadth}
+            depth={displayResearch.depth}
+            steps={displayResearch.steps}
+            progress={displayResearch.progress}
+            liveResults={displayResearch.liveResults}
+            serpQueries={displayResearch.serpQueries}
+            report={displayResearch.report}
+            loading={displayResearch.loading}
+            error={displayResearch.error}
             onCancel={handleCancelResearch}
           />
         ) : activeConv ? (

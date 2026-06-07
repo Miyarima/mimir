@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2, RefreshCw, Palette } from 'lucide-react'
 import type { Crawl4AIStatus, Settings } from '../types'
 
 interface SettingsPanelProps {
@@ -331,6 +331,9 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
 
           {/* Crawl4AI */}
           <Crawl4AISection settings={settings} onUpdate={update} />
+
+          {/* Theme */}
+          <ThemeSection theme={settings.theme} onSelect={v => update('theme', v)} />
         </div>
       </main>
     </div>
@@ -520,6 +523,54 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
               settings.autoStartCrawl4AI ? 'translate-x-4' : ''
             }`} />
           </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+interface ThemeOption {
+  id: string
+  name: string
+  colors: [string, string, string, string] // bg, card, border, primary
+}
+
+const themes: ThemeOption[] = [
+  { id: 'emerald', name: 'Emerald', colors: ['#1a1b23', '#2d2f3a', '#3d3f4a', '#10b981'] },
+  { id: 'ruby', name: 'Ruby', colors: ['#221a1a', '#332a28', '#443a38', '#ef4444'] },
+  { id: 'sapphire', name: 'Sapphire', colors: ['#181b23', '#282c3a', '#383c4a', '#3b82f6'] },
+  { id: 'amethyst', name: 'Amethyst', colors: ['#1d1922', '#2d283a', '#3d384a', '#8b5cf6'] },
+  { id: 'amber', name: 'Amber', colors: ['#221f18', '#332f28', '#443f38', '#f59e0b'] },
+  { id: 'teal', name: 'Teal', colors: ['#181d1f', '#282e30', '#383e40', '#14b8a6'] },
+  { id: 'rose', name: 'Rose', colors: ['#22181d', '#33282d', '#44383d', '#f43f5e'] },
+  { id: 'slate', name: 'Slate', colors: ['#1c1c1e', '#2d2d30', '#3d3d40', '#6b7280'] },
+]
+
+function ThemeSection({ theme, onSelect }: { theme: string; onSelect: (v: string) => void }) {
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <Palette className="h-3.5 w-3.5" />
+        Theme
+      </h2>
+      <div className="rounded-2xl border border-border bg-card/60 p-4">
+        <div className="grid grid-cols-4 gap-2">
+          {themes.map(t => (
+            <button key={t.id} onClick={() => onSelect(t.id)}
+                    className={`flex flex-col items-center gap-2 rounded-xl border p-3 transition-all ${
+                      theme === t.id
+                        ? 'border-primary/40 bg-primary/[0.04] ring-1 ring-primary/20'
+                        : 'border-border hover:border-border/70 hover:bg-secondary/50'
+                    }`}>
+              <div className="flex w-full gap-[2px] overflow-hidden rounded-md">
+                <div className="h-3 flex-1" style={{ backgroundColor: t.colors[0] }} />
+                <div className="h-3 flex-1" style={{ backgroundColor: t.colors[1] }} />
+                <div className="h-3 flex-1" style={{ backgroundColor: t.colors[2] }} />
+                <div className="h-3 flex-1" style={{ backgroundColor: t.colors[3] }} />
+              </div>
+              <span className="text-[11px] font-medium leading-none text-foreground/70">{t.name}</span>
+            </button>
+          ))}
         </div>
       </div>
     </section>

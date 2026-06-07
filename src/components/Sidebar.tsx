@@ -47,19 +47,13 @@ function ConversationItem({ conv, index, total, activeId, renamingId, renameValu
       )}
       <button
         onClick={() => { setMenuState(null); onSelect(conv.id) }}
-        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1 text-left text-sm transition ${
+        className={`flex w-full items-center gap-1.5 rounded-lg px-3 py-1 text-left text-sm transition ${
           activeId === conv.id
             ? 'bg-accent text-accent-foreground'
             : 'text-sidebar-foreground/80 hover:bg-secondary/60'
         }`}
       >
-        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-          {conv.isResearch ? (
-            <Sparkles className="h-4 w-4 opacity-70" />
-          ) : (
-            <MessageSquare className="h-4 w-4 opacity-70" />
-          )}
-        </div>
+
         {renamingId === conv.id ? (
           <input
             ref={inputRef}
@@ -133,12 +127,13 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
     setSectionsOpen(prev => ({ ...prev, [name]: !prev[name] }))
   }
 
-  function renderSection(label: string, items: Conversation[]) {
+  function renderSection(label: string, items: Conversation[], icon: React.ReactNode) {
     return (
       <>
         <button onClick={() => toggleSection(label)}
                 className="flex w-full items-center gap-1.5 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition">
           {sectionsOpen[label] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {icon}
           {label}
         </button>
         <div className={`grid transition-all duration-300 ease-out ${
@@ -203,8 +198,8 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
 
         {/* Conversation sections */}
         <div className="flex-1 overflow-y-auto pt-2 pb-1">
-          {renderSection('Chats', chats)}
-          {renderSection('Deep Research', deepResearch)}
+          {renderSection('Chats', chats, <MessageSquare className="h-3 w-3 opacity-70" />)}
+          {renderSection('Deep Research', deepResearch, <Sparkles className="h-3 w-3 opacity-70" />)}
         </div>
 
         {/* Footer */}
