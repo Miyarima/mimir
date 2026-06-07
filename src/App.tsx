@@ -54,6 +54,7 @@ export default function App() {
   }, [settings])
 
   const checkConnection = useCallback(async () => {
+    if (!settings.apiEndpoint) { setConnectionStatus('disconnected'); return }
     setConnectionStatus('checking')
     try {
       const res = await fetch(settings.apiEndpoint.replace(/\/+$/, '') + '/models', {
@@ -181,12 +182,6 @@ export default function App() {
   const handleDraftSubmit = useCallback((question: string): Conversation => {
     const conv = createConversation(false)
     conv.title = question.slice(0, 40)
-    conv.messages.push({
-      id: generateId(),
-      role: 'user',
-      content: question,
-      timestamp: Date.now(),
-    })
     setDraftId(null)
     setConversations(prev => [conv, ...prev])
     setActiveId(conv.id)
@@ -374,24 +369,23 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
       />
 
       <main className="relative flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center justify-between border-b border-border px-4"
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4"
                 style={{ WebkitAppRegion: 'drag' } as any}>
-          <div className="flex items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as any}>
+          <div className="flex min-w-0 items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as any}>
             <button
               onClick={() => setSidebarOpen(v => !v)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
               aria-label="Toggle sidebar"
             >
               <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
               </svg>
             </button>
-            <h1 className="text-sm font-medium text-foreground/90">
+            <h1 className="min-w-0 truncate text-sm font-medium text-foreground/90">
               {activeConv?.title || 'New conversation'}
             </h1>
           </div>
-
-          <div className="flex items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as any}>
+          <div className="flex shrink-0 items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as any}>
             {connectionStatus === 'connected' && (
               <div className="flex items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs text-muted-foreground">
                 <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-glow" />

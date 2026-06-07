@@ -79,7 +79,7 @@ export async function startCrawl4AI(endpoint?: string): Promise<boolean> {
     await execPromise('docker pull unclecode/crawl4ai 2>/dev/null', 300_000)
 
     // Start existing container or create a new one
-    const cmd = 'docker start crawl4ai 2>/dev/null || docker run -d --name crawl4ai -p 8000:8000 unclecode/crawl4ai'
+    const cmd = 'docker start crawl4ai 2>/dev/null || docker run -d --name crawl4ai -p 8000:8000 -p 11235:11235 --shm-size=1g unclecode/crawl4ai'
     console.log('Starting Crawl4AI container…')
     const result = await execPromise(cmd, 30_000)
 

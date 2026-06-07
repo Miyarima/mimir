@@ -15,6 +15,8 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
   const [loadingModels, setLoadingModels] = useState(false)
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const [providerOpen, setProviderOpen] = useState(false)
+  const [apiOk, setApiOk] = useState<boolean | null>(null)
+  const [checkingApi, setCheckingApi] = useState(false)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
   const providerRef = useRef<HTMLDivElement>(null)
 
@@ -44,6 +46,35 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
     return () => document.removeEventListener('mousedown', close)
   }, [providerOpen])
 
+  async function checkApi(ep: string) {
+    if (!ep) { setApiOk(null); return }
+    setCheckingApi(true)
+    setApiOk(null)
+    const started = Date.now()
+    const base = ep.replace(/\/+$/, '')
+    const urls = base.includes('/v1')
+      ? [`${base}/models`, base.replace(/\/v1.*/, '')]
+      : [`${base}/models`, `${base}/v1/models`, base]
+    let ok = false
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, {
+          signal: AbortSignal.timeout(3000),
+          headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
+        })
+        if (res.ok || res.status !== 0) { ok = true; break }
+      } catch {}
+    }
+    setApiOk(ok)
+    const elapsed = Date.now() - started
+    if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed))
+    setCheckingApi(false)
+  }
+
+  useEffect(() => {
+    checkApi(settings.apiEndpoint)
+  }, [settings.apiEndpoint])
+
   useEffect(() => {
     if (!settings.apiEndpoint) return
     let cancelled = false
@@ -72,8 +103,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
             .map((m: any) => (typeof m === 'string' ? m : m.id || m.name))
             .filter(Boolean)
           if (ids.length > 0) { setModels(ids); break }
-        } catch (e) {
-          console.error('fetch models error:', url, e)
+        } catch {
         }
       }
       const elapsed = Date.now() - started
@@ -84,7 +114,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
   }, [settings.apiEndpoint, settings.apiKey])
 
   return (
-    <div className="flex h-full w-full flex-col bg-background text-foreground">
+    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
       <header className="flex h-14 items-center gap-3 border-b border-border px-4">
         <button onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
@@ -108,14 +138,39 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                   <KeyRound className="h-4 w-4" />
                 </span>
                 <div className="flex flex-1 flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground/90">API Endpoint</span>
-                    {loadingModels && <Loader2 size={12} className="animate-spin text-primary/70" />}
-                  </div>
+                  <span className="text-sm font-medium text-foreground/90">API Endpoint</span>
                   <input type="text"
+                         value={settings.apiEndpoint}
                          onChange={e => update('apiEndpoint', e.target.value)}
-                         placeholder={settings.apiEndpoint || 'http://localhost:11434/v1'}
+                         placeholder="http://localhost:11434/v1"
                          className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {checkingApi ? (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground/50">
+                      <span>Checking</span>
+                    </span>
+                  ) : apiOk === true ? (
+                    <span className="flex items-center gap-1 text-xs text-primary/70">
+                      <span className="h-2 w-2 rounded-full bg-primary" />
+                      <span>Reachable</span>
+                    </span>
+                  ) : apiOk === false ? (
+                    <span className="flex items-center gap-1 text-xs text-destructive/70">
+                      <span className="h-2 w-2 rounded-full bg-destructive" />
+                      <span>Unreachable</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
+                      <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                      <span>No endpoint</span>
+                    </span>
+                  )}
+                  <button onClick={() => checkApi(settings.apiEndpoint)}
+                          className="flex items-center rounded-md border border-border p-1 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
+                          title="Check endpoint">
+                    <RefreshCw className={`h-3 w-3 ${checkingApi ? 'animate-spin' : ''}`} />
+                  </button>
                 </div>
               </div>
               <div className="mx-4 h-px bg-border" />
@@ -293,12 +348,24 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
     setEndpointOk(null)
     setCheckingEndpoint(true)
     const started = Date.now()
+    let ok = false
     try {
-      const url = ep.replace(/\/+$/, '')
-      await fetch(url, { method: 'POST', mode: 'no-cors', signal: AbortSignal.timeout(5000) })
-      setEndpointOk(true)
-    } catch (e) {
-      console.error('endpoint check failed:', e)
+      if (window.electronAPI?.crawl4ai) {
+        const s = await window.electronAPI.crawl4ai.status(ep)
+        ok = s.running
+      } else {
+        const base = ep.replace(/\/+$/, '')
+        const tries = [
+          () => fetch(base + '/crawl', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: ['https://example.com'], priority: 10 }), signal: AbortSignal.timeout(3000) }),
+          () => fetch(base + '/crawl_sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urls: ['https://example.com'], priority: 10 }), signal: AbortSignal.timeout(3000) }),
+          () => fetch(base, { mode: 'no-cors', signal: AbortSignal.timeout(3000) }),
+        ]
+        for (const fn of tries) {
+          try { const res = await fn(); if (res.ok || res.status !== 0) { ok = true; break } } catch {}
+        }
+      }
+      setEndpointOk(ok)
+    } catch {
       setEndpointOk(false)
     }
     const elapsed = Date.now() - started
@@ -315,9 +382,16 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
       setStatus(starting ? { ...s, starting: true } : s)
     } else {
       try {
-        const ep = settings.crawl4aiEndpoint.replace(/\/+$/, '')
-        await fetch(ep, { method: 'POST', mode: 'no-cors', signal: AbortSignal.timeout(5000) })
-        setStatus({ running: true, dockerAvailable: false, containerExists: false, starting: false, endpoint: ep })
+        const base = settings.crawl4aiEndpoint.replace(/\/+$/, '')
+        const paths = ['/crawl', '/crawl_sync']
+        let ok = false
+        for (const p of paths) {
+          try {
+            await fetch(base + p, { method: 'POST', mode: 'no-cors', body: '{}', signal: AbortSignal.timeout(3000) })
+            ok = true; break
+          } catch {}
+        }
+        setStatus({ running: ok, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
       } catch {
         setStatus({ running: false, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
       }
@@ -374,14 +448,26 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
                    className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className={`flex items-center gap-1 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
-              {endpointOk !== null ? (
-                <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
-              ) : (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              )}
-              <span>{endpointOk !== null ? (endpointOk ? 'Reachable' : 'Unreachable') : 'Checking'}</span>
-            </span>
+            {checkingEndpoint ? (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground/50">
+                <span>Checking</span>
+              </span>
+            ) : endpointOk === true ? (
+              <span className="flex items-center gap-1 text-xs text-primary/70">
+                <span className="h-2 w-2 rounded-full bg-primary" />
+                <span>Reachable</span>
+              </span>
+            ) : endpointOk === false ? (
+              <span className="flex items-center gap-1 text-xs text-destructive/70">
+                <span className="h-2 w-2 rounded-full bg-destructive" />
+                <span>Unreachable</span>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground/40">
+                <span className="h-2 w-2 rounded-full bg-muted-foreground/40" />
+                <span>No endpoint</span>
+              </span>
+            )}
             <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
                     className="flex items-center rounded-md border border-border p-1 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
                     title="Check endpoint">
