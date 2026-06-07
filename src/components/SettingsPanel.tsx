@@ -367,18 +367,19 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
                      placeholder="http://localhost:8000"
                      className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
               <span className={`flex shrink-0 items-center gap-1.5 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
-              {endpointOk !== null ? (
-                <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
-              ) : (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              )}
-              {endpointOk !== null ? (endpointOk ? 'Reachable' : 'Unreachable') : 'Checking'}
-            </span>
-            <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
-                    className="flex shrink-0 items-center rounded-md border border-border p-1.5 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
-                    title="Check endpoint">
-              <RefreshCw className="h-3.5 w-3.5" />
-            </button>
+                {endpointOk !== null ? (
+                  <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
+                ) : (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                )}
+                {endpointOk !== null ? (endpointOk ? 'Reachable' : 'Unreachable') : 'Checking'}
+              </span>
+              <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
+                      className="flex shrink-0 items-center rounded-md border border-border p-1.5 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
+                      title="Check endpoint">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
         </div>
         <div className="mx-4 h-px bg-border" />
@@ -428,7 +429,6 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </button>
         </div>
       </div>
-    </div>
     </section>
   )
 }
