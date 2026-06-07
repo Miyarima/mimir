@@ -292,13 +292,17 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
     if (!ep) { setEndpointOk(null); return }
     setEndpointOk(null)
     setCheckingEndpoint(true)
+    const started = Date.now()
     try {
       const url = ep.replace(/\/+$/, '')
       await fetch(url, { method: 'POST', mode: 'no-cors', signal: AbortSignal.timeout(5000) })
       setEndpointOk(true)
-    } catch {
+    } catch (e) {
+      console.error('endpoint check failed:', e)
       setEndpointOk(false)
     }
+    const elapsed = Date.now() - started
+    if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed))
     setCheckingEndpoint(false)
   }, [])
 
