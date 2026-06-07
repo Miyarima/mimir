@@ -361,27 +361,25 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </span>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <div className="flex items-center gap-1.5">
-              <div className="flex h-7 flex-1 items-center">
-                <input type="text" value={settings.crawl4aiEndpoint}
-                       onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
-                       placeholder="http://localhost:8000"
-                       className="w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
-              </div>
-              <span className={`flex h-7 shrink-0 items-center gap-1.5 rounded-md px-1.5 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
-                {endpointOk !== null ? (
-                  <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
-                ) : (
-                  <RefreshCw className="h-3 w-3 animate-spin" />
-                )}
-                <span>{endpointOk !== null ? (endpointOk ? 'Reachable' : 'Unreachable') : 'Checking'}</span>
-              </span>
-              <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
-                      className="flex h-7 shrink-0 items-center rounded-md border border-border px-1.5 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
-                      title="Check endpoint">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <input type="text" value={settings.crawl4aiEndpoint}
+                   onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
+                   placeholder="http://localhost:8000"
+                   className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className={`flex items-center gap-1 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
+              {endpointOk !== null ? (
+                <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
+              ) : (
+                <RefreshCw className="h-3 w-3 animate-spin" />
+              )}
+              <span>{endpointOk !== null ? (endpointOk ? 'Reachable' : 'Unreachable') : 'Checking'}</span>
+            </span>
+            <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
+                    className="flex items-center rounded-md border border-border p-1 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
+                    title="Check endpoint">
+              <RefreshCw className="h-3 w-3" />
+            </button>
           </div>
         </div>
         <div className="mx-4 h-px bg-border" />
