@@ -14,13 +14,107 @@ interface SidebarProps {
   sidebarOpen: boolean
 }
 
+function ConversationItem({ conv, index, total, activeId, renamingId, renameValue, menuState, onSelect, onRename, onDelete, setMenuState, setRenamingId, setRenameValue, inputRef, menuRef }: {
+  conv: Conversation
+  index: number
+  total: number
+  activeId: string | null
+  renamingId: string | null
+  renameValue: string
+  menuState: { id: string; top: number; right: number } | null
+  onSelect: (id: string) => void
+  onRename: (id: string, title: string) => void
+  onDelete: (id: string) => void
+  setMenuState: (s: { id: string; top: number; right: number } | null) => void
+  setRenamingId: (s: string | null) => void
+  setRenameValue: (s: string) => void
+  inputRef: React.RefObject<HTMLInputElement | null>
+  menuRef: React.RefObject<HTMLDivElement | null>
+}) {
+  return (
+    <div className="group relative flex items-center pl-[19px]">
+      {/* Tree lines */}
+      {index === total - 1 ? (
+        <>
+          <div className="absolute left-[7px] top-0 w-px h-1/2 bg-sidebar-foreground/20 rounded-b-full" />
+          <div className="absolute left-[7px] top-1/2 w-3 h-px bg-sidebar-foreground/20" />
+        </>
+      ) : (
+        <>
+          <div className="absolute left-[7px] inset-y-0 w-px bg-sidebar-foreground/20" />
+          <div className="absolute left-[7px] top-1/2 w-3 h-px bg-sidebar-foreground/20 -translate-y-1/2" />
+        </>
+      )}
+      <button
+        onClick={() => { setMenuState(null); onSelect(conv.id) }}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1 text-left text-sm transition ${
+          activeId === conv.id
+            ? 'bg-accent text-accent-foreground'
+            : 'text-sidebar-foreground/80 hover:bg-secondary/60'
+        }`}
+      >
+        <div className="flex h-4 w-4 shrink-0 items-center justify-center">
+          {conv.isResearch ? (
+            <Sparkles className="h-4 w-4 opacity-70" />
+          ) : (
+            <MessageSquare className="h-4 w-4 opacity-70" />
+          )}
+        </div>
+        {renamingId === conv.id ? (
+          <input
+            ref={inputRef}
+            value={renameValue}
+            onChange={e => setRenameValue(e.target.value)}
+            onBlur={() => { onRename(conv.id, renameValue || conv.title); setRenamingId(null) }}
+            onKeyDown={e => {
+              if (e.key === 'Enter') { onRename(conv.id, renameValue || conv.title); setRenamingId(null) }
+              if (e.key === 'Escape') setRenamingId(null)
+            }}
+            onClick={e => e.stopPropagation()}
+            className="flex-1 truncate bg-transparent text-sm text-foreground outline-none"
+          />
+        ) : (
+          <span className="flex-1 truncate">{conv.isResearch ? conv.title.replace(/^Research:\s*/i, '') : conv.title || 'New conversation'}</span>
+        )}
+        <MoreHorizontal onClick={(e) => {
+          e.stopPropagation()
+          if (menuState?.id === conv.id) { setMenuState(null); return }
+          const rect = e.currentTarget.getBoundingClientRect()
+          setMenuState({ id: conv.id, top: rect.bottom + 4, right: window.innerWidth - rect.right })
+        }}
+                        className="h-4 w-4 shrink-0 text-sidebar-foreground/40 opacity-0 transition hover:text-foreground group-hover:opacity-100" />
+      </button>
+
+      {menuState?.id === conv.id && (
+        <div ref={menuRef}
+             className="fixed z-50 w-36 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg"
+             style={{ top: menuState.top, right: menuState.right }}>
+          <button onClick={() => { setRenamingId(conv.id); setRenameValue(conv.title); setMenuState(null) }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-secondary">
+            <Pencil className="h-3.5 w-3.5" />
+            Rename
+          </button>
+          <button onClick={() => { onDelete(conv.id); setMenuState(null) }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-destructive transition hover:bg-destructive/15">
+            <Trash2 className="h-3.5 w-3.5" />
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, onSettings, showSettings, sidebarOpen }: SidebarProps) {
   const [menuState, setMenuState] = useState<{ id: string; top: number; right: number } | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
-  const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>({ Chats: true })
+  const [sectionsOpen, setSectionsOpen] = useState<Record<string, boolean>>({ Chats: true, 'Deep Research': true })
   const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const chats = conversations.filter(c => !c.isResearch)
+  const deepResearch = conversations.filter(c => c.isResearch)
 
   useEffect(() => {
     if (renamingId && inputRef.current) inputRef.current.focus()
@@ -37,6 +131,51 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
 
   const toggleSection = (name: string) => {
     setSectionsOpen(prev => ({ ...prev, [name]: !prev[name] }))
+  }
+
+  function renderSection(label: string, items: Conversation[]) {
+    return (
+      <>
+        <button onClick={() => toggleSection(label)}
+                className="flex w-full items-center gap-1.5 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition">
+          {sectionsOpen[label] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          {label}
+        </button>
+        <div className={`grid transition-all duration-300 ease-out ${
+          sectionsOpen[label] ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+        }`}>
+          <div className="overflow-hidden">
+            <div className="flex flex-col px-2 mt-1">
+              {items.length === 0 && (
+                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
+                  No {label.toLowerCase()} yet
+                </div>
+              )}
+              {items.map((conv, idx) => (
+                <ConversationItem
+                  key={conv.id}
+                  conv={conv}
+                  index={idx}
+                  total={items.length}
+                  activeId={activeId}
+                  renamingId={renamingId}
+                  renameValue={renameValue}
+                  menuState={menuState}
+                  onSelect={onSelect}
+                  onRename={onRename}
+                  onDelete={onDelete}
+                  setMenuState={setMenuState}
+                  setRenamingId={setRenamingId}
+                  setRenameValue={setRenameValue}
+                  inputRef={inputRef}
+                  menuRef={menuRef}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      </>
+    )
   }
 
   return (
@@ -64,96 +203,8 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
 
         {/* Conversation sections */}
         <div className="flex-1 overflow-y-auto pt-2 pb-1">
-          <button onClick={() => toggleSection('Chats')}
-                  className="flex w-full items-center gap-1.5 px-4 py-1.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground hover:text-foreground transition">
-            {sectionsOpen.Chats ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-            Chats
-          </button>
-          <div className={`grid transition-all duration-300 ease-out ${
-            sectionsOpen.Chats ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
-          }`}>
-            <div className="overflow-hidden">
-            <div className="flex flex-col px-2 mt-1">
-            {conversations.length === 0 && (
-              <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-                No conversations yet
-              </div>
-            )}
-              {conversations.map((conv, idx) => (
-              <div key={conv.id} className="group relative flex items-center pl-[19px]">
-                {/* Tree lines */}
-                {idx === conversations.length - 1 ? (
-                  <>
-                    <div className="absolute left-[7px] top-0 w-px h-1/2 bg-sidebar-foreground/20 rounded-b-full" />
-                    <div className="absolute left-[7px] top-1/2 w-3 h-px bg-sidebar-foreground/20" />
-                  </>
-                ) : (
-                  <>
-                    <div className="absolute left-[7px] inset-y-0 w-px bg-sidebar-foreground/20" />
-                    <div className="absolute left-[7px] top-1/2 w-3 h-px bg-sidebar-foreground/20 -translate-y-1/2" />
-                  </>
-                )}
-                <button
-                  onClick={() => { setMenuState(null); onSelect(conv.id) }}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-1 text-left text-sm transition ${
-                    activeId === conv.id
-                      ? 'bg-accent text-accent-foreground'
-                      : 'text-sidebar-foreground/80 hover:bg-secondary/60'
-                  }`}
-                >
-                  <div className="flex h-4 w-4 shrink-0 items-center justify-center">
-                    {conv.isResearch ? (
-                      <Sparkles className="h-4 w-4 opacity-70" />
-                    ) : (
-                      <MessageSquare className="h-4 w-4 opacity-70" />
-                    )}
-                  </div>
-                  {renamingId === conv.id ? (
-                    <input
-                      ref={inputRef}
-                      value={renameValue}
-                      onChange={e => setRenameValue(e.target.value)}
-                      onBlur={() => { onRename(conv.id, renameValue || conv.title); setRenamingId(null) }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter') { onRename(conv.id, renameValue || conv.title); setRenamingId(null) }
-                        if (e.key === 'Escape') setRenamingId(null)
-                      }}
-                      onClick={e => e.stopPropagation()}
-                      className="flex-1 truncate bg-transparent text-sm text-foreground outline-none"
-                    />
-                  ) : (
-                    <span className="flex-1 truncate">{conv.title || 'New conversation'}</span>
-                  )}
-                  <MoreHorizontal onClick={(e) => {
-                    e.stopPropagation()
-                    if (menuState?.id === conv.id) { setMenuState(null); return }
-                    const rect = e.currentTarget.getBoundingClientRect()
-                    setMenuState({ id: conv.id, top: rect.bottom + 4, right: window.innerWidth - rect.right })
-                  }}
-                                  className="h-4 w-4 shrink-0 text-sidebar-foreground/40 opacity-0 transition hover:text-foreground group-hover:opacity-100" />
-                </button>
-
-                {menuState?.id === conv.id && (
-                  <div ref={menuRef}
-                       className="fixed z-50 w-36 overflow-hidden rounded-lg border border-border bg-card py-1 shadow-lg"
-                       style={{ top: menuState.top, right: menuState.right }}>
-                    <button onClick={() => { setRenamingId(conv.id); setRenameValue(conv.title); setMenuState(null) }}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-secondary">
-                      <Pencil className="h-3.5 w-3.5" />
-                      Rename
-                    </button>
-                    <button onClick={() => { onDelete(conv.id); setMenuState(null) }}
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-destructive transition hover:bg-destructive/15">
-                      <Trash2 className="h-3.5 w-3.5" />
-                      Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-        </div>
+          {renderSection('Chats', chats)}
+          {renderSection('Deep Research', deepResearch)}
         </div>
 
         {/* Footer */}

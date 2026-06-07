@@ -6,18 +6,18 @@ A minimalistic, dark-themed desktop chat interface that connects to any OpenAI-c
 
 ![Mimir screenshot](screenshot.png)
 
-> **PSA:** This project is 100% vibe coded — I'm using it as a test project to explore what vibe coding can do. If you're here from the future and this is somehow popular, please manage your expectations accordingly. 🍃
-
 ## Features
 
 - **Chat interface** — stream responses from any OpenAI-compatible API endpoint
-- **Deep research** — multi-step autonomous research: sub-query generation → web search → analysis → report synthesis
+- **Deep research** — multi-step autonomous research: sub-query generation → web search → analysis → report synthesis. Runs persist in the background even when navigating away.
+- **Research timeline** — live progress view showing queries and sources as they're collected; skeletons shown during initial loading phase; timeline hidden once the final report is ready
+- **Smart loading UX** — loading indicator auto-positions at ~60% from viewport top during research, auto-scrolls there while loading, and scrolls to top on completion
 - **Persistent storage** — all conversations saved to local SQLite database, survive app restarts
 - **Dark theme** — premium dark UI with OKLCH color tokens, gradient accents, ambient glow
 - **LaTeX rendering** — inline and block math via KaTeX
 - **Connection status** — live ping to your API endpoint shows Connected / Disconnected
 - **Conversation management** — create, select, rename inline, delete conversations
-- **AI-powered auto-rename** — generates a short title after each conversation
+- **AI-powered titles** — automatic title generation for both chat and research conversations (visible in sidebar without "Research: " prefix)
 - **Cross-platform** — Windows, macOS, Linux builds via electron-builder
 - **CJK font support** — bundled Chinese, Japanese, and Korean fonts
 - **Vegvísir logo** — custom Norse-themed SVG logo
@@ -88,7 +88,7 @@ Open the Settings panel from the sidebar to configure:
 - **Framework:** Electron + React 19 + TypeScript + Vite
 - **Styling:** Tailwind CSS v4 with OKLCH color tokens
 - **Fonts:** Geist (UI), WenQuanYi Micro Hei (CJK), NanumGothic (Korean)
-- **AI SDK:** OpenAI SDK (streaming + non-streaming)
+- **AI SDK:** AI SDK + OpenAI SDK (streaming + non-streaming)
 - **Markdown:** react-markdown + remark-gfm + remark-math + rehype-katex
 - **Search:** DuckDuckGo scraping, Tavily API, SearXNG API
 - **Storage:** SQLite via sql.js
@@ -109,9 +109,9 @@ mimir/
 │   ├── components/
 │   │   ├── ChatView.tsx      # Chat interface, streaming, command dropdown
 │   │   ├── Sidebar.tsx       # Collapsible sidebar, conversation list
-│   │   ├── MessageBubble.tsx  # Message rendering, markdown, LaTeX
+│   │   ├── MessageBubble.tsx # Message rendering, markdown, LaTeX
 │   │   ├── ResearchView.tsx  # Research progress, source cards, report
-│   │   └── SettingsPanel.tsx  # Model, search, endpoint configuration
+│   │   └── SettingsPanel.tsx # Model, search, endpoint configuration
 │   ├── services/
 │   │   ├── api.ts        # OpenAI SDK wrapper
 │   │   ├── research.ts   # Deep research engine

@@ -5,11 +5,12 @@ import type { Message, Conversation, Settings } from '../types'
 import { chat } from '../services/api'
 
 interface ChatViewProps {
-  conversation: Conversation
+  conversation: Conversation | null
   settings: Settings
   onUpdateConversation: (conv: Conversation) => void
   onRename: (id: string, title: string) => void
-  onStartResearch: (question: string) => void
+  onStartResearch: (question: string, breadth?: number, depth?: number) => void
+  onDraftSubmit?: (question: string) => Conversation
 }
 
 const suggestions = [
@@ -21,10 +22,10 @@ const suggestions = [
 
 const commands = [
   { name: '/research', desc: 'Deep multi-step research with web search' },
-  { name: '/deep', desc: 'Alias for /research' },
+  { name: '/deep B,D', desc: 'Research with breadth B and depth D' },
 ]
 
-export default function ChatView({ conversation, settings, onUpdateConversation, onRename, onStartResearch }: ChatViewProps) {
+export default function ChatView({ conversation, settings, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [cmdIndex, setCmdIndex] = useState(0)
@@ -45,7 +46,7 @@ export default function ChatView({ conversation, settings, onUpdateConversation,
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [conversation.messages])
+  }, [conversation?.messages])
 
   useEffect(() => {
     const el = taRef.current
@@ -59,6 +60,27 @@ export default function ChatView({ conversation, settings, onUpdateConversation,
     const question = input.trim()
     setInput('')
 
+    const isResearch = question.toLowerCase().includes('/research') || question.toLowerCase().includes('/deep')
+    if (isResearch) {
+      let q = question.replace(/\/research/gi, '').trim()
+      let breadth: number | undefined
+      let depth: number | undefined
+
+      const deepMatch = q.match(/^\/deep\s+(\d+)\s*[, ]\s*(\d+)/i)
+      if (deepMatch) {
+        breadth = parseInt(deepMatch[1])
+        depth = parseInt(deepMatch[2])
+        q = q.replace(/\/deep\s+\d+\s*[, ]\s*\d+\s*/i, '').trim()
+      } else {
+        q = q.replace(/\/deep/gi, '').trim()
+      }
+
+      onStartResearch(q, breadth, depth)
+      return
+    }
+
+    const activeConv = conversation ?? onDraftSubmit!(question)
+
     const userMsg: Message = {
       id: Date.now().toString(36),
       role: 'user',
@@ -66,19 +88,13 @@ export default function ChatView({ conversation, settings, onUpdateConversation,
       timestamp: Date.now(),
     }
 
-    const updated = { ...conversation }
+    const updated = { ...activeConv }
     updated.messages = [...updated.messages, userMsg]
     const needsTitle = updated.title === 'New conversation'
     if (needsTitle) {
-      onRename(conversation.id, question.slice(0, 40))
+      onRename(activeConv.id, question.slice(0, 40))
     }
     onUpdateConversation(updated)
-
-    const isResearch = question.toLowerCase().includes('/research') || question.toLowerCase().includes('/deep')
-    if (isResearch) {
-      onStartResearch(question.replace(/\/research|\/deep/gi, '').trim())
-      return
-    }
 
     setLoading(true)
     const assistantMsg: Message = {
@@ -129,7 +145,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
         }).then(async r => {
           const data = await r.json()
           const title = data.choices?.[0]?.message?.content?.trim()
-          if (title) onRename(conversation.id, title.replace(/[""''"]/g, '').slice(0, 60))
+          if (title) onRename(activeConv.id, title.replace(/[""''"]/g, '').slice(0, 60))
         }).catch(() => {})
       }
     } catch (err: any) {
@@ -144,7 +160,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
     }
   }
 
-  const hasMessages = conversation.messages.length > 0
+  const hasMessages = (conversation?.messages.length ?? 0) > 0
 
   return (
     <>
@@ -164,6 +180,8 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                 /research
               </span>{' '}
               for deep multi-step research.
+              <br />
+              <span className="text-xs text-muted-foreground/70">Override breadth/depth: <code className="rounded bg-secondary/40 px-1 font-mono text-[11px]">/deep 6,3 quantum computing</code></span>
             </p>
             <p className="mt-2 text-xs text-muted-foreground/70">
               Works with any OpenAI-compatible local model
@@ -189,7 +207,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-6xl space-y-5">
-              {conversation.messages.map(msg => (
+              {conversation!.messages.map(msg => (
                 <MessageBubble key={msg.id} message={msg} />
               ))}
               <div ref={messagesEndRef} />
@@ -230,7 +248,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
               value={input}
               onChange={e => setInput(e.target.value)}
               rows={1}
-              placeholder="Ask anything…  (type /research for deep research)"
+              placeholder="Ask anything…  (/research or /deep B,D)"
               disabled={loading}
               className="max-h-[200px] min-h-[24px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm leading-6 text-foreground placeholder:text-muted-foreground/70 focus:outline-none disabled:opacity-50"
               onKeyDown={e => {

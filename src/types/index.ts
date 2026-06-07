@@ -5,6 +5,23 @@ export interface Settings {
   searchProvider: 'duckduckgo' | 'tavily' | 'searxng'
   searchEndpoint: string
   maxResearchSteps: number
+  researchBreadth: number
+  researchDepth: number
+  crawl4aiEndpoint: string
+  autoStartCrawl4AI: boolean
+}
+
+export type ResearchStage = 'generating_queries' | 'searching' | 'analyzing' | 'reporting' | 'complete'
+
+export interface ResearchProgress {
+  stage: ResearchStage
+  currentDepth: number
+  totalDepth: number
+  currentBreadth: number
+  totalBreadth: number
+  currentQuery?: string
+  totalQueries: number
+  completedQueries: number
 }
 
 export type MessageRole = 'user' | 'assistant' | 'system'
@@ -26,7 +43,7 @@ export interface Source {
 export interface ResearchStep {
   step: number
   query: string
-  findings: string
+  learnings: string[]
   sources: Source[]
 }
 
@@ -57,11 +74,19 @@ export interface ConversationListItem {
   updatedAt: number
 }
 
+export interface Crawl4AIStatus {
+  running: boolean
+  dockerAvailable: boolean
+  containerExists: boolean
+  starting: boolean
+  endpoint: string
+}
+
 declare global {
   interface Window {
     electronAPI?: {
       minimize: () => void
-      maximize: () => void
+      fullscreen: () => void
       close: () => void
       db: {
         loadConversations: () => Promise<ConversationListItem[]>
@@ -72,6 +97,12 @@ declare global {
         deleteConversation: (id: string) => Promise<void>
         loadSettings: () => Promise<Record<string, string>>
         saveSetting: (key: string, value: string) => Promise<void>
+      }
+      crawl4ai: {
+        status: (endpoint?: string) => Promise<Crawl4AIStatus>
+        start: (endpoint?: string) => Promise<boolean>
+        stop: () => Promise<boolean>
+        isStarting: () => Promise<boolean>
       }
     }
   }

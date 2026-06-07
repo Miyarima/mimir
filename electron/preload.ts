@@ -15,4 +15,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loadSettings: () => ipcRenderer.invoke('db:load-settings'),
     saveSetting: (key: string, value: string) => ipcRenderer.invoke('db:save-setting', key, value),
   },
+
+  crawl4ai: {
+    status: (endpoint?: string) => ipcRenderer.invoke('crawl4ai:status', endpoint),
+    start: (endpoint?: string) => ipcRenderer.invoke('crawl4ai:start', endpoint),
+    stop: () => ipcRenderer.invoke('crawl4ai:stop'),
+    isStarting: () => ipcRenderer.invoke('crawl4ai:is-starting'),
+  },
 })

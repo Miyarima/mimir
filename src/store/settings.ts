@@ -7,6 +7,10 @@ export const defaultSettings: Settings = {
   searchProvider: 'duckduckgo',
   searchEndpoint: '',
   maxResearchSteps: 5,
+  researchBreadth: 4,
+  researchDepth: 2,
+  crawl4aiEndpoint: 'http://localhost:8000',
+  autoStartCrawl4AI: false,
 }
 
 export async function loadSettings(): Promise<Settings> {
