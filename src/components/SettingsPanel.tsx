@@ -359,13 +359,14 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
             <Globe className="h-4 w-4" />
           </span>
-          <div className="flex flex-1 items-center gap-2">
-            <span className="shrink-0 text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <input type="text" value={settings.crawl4aiEndpoint}
-                   onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
-                   placeholder="http://localhost:8000"
-                   className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
-            <span className={`flex shrink-0 items-center gap-1.5 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
+          <div className="flex flex-1 flex-col">
+            <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
+            <div className="flex items-center gap-1.5">
+              <input type="text" value={settings.crawl4aiEndpoint}
+                     onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
+                     placeholder="http://localhost:8000"
+                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+              <span className={`flex shrink-0 items-center gap-1.5 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
               {endpointOk !== null ? (
                 <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
               ) : (
@@ -427,6 +428,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </button>
         </div>
       </div>
+    </div>
     </section>
   )
 }
