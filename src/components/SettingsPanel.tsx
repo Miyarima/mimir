@@ -286,17 +286,20 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
   const [status, setStatus] = useState<Crawl4AIStatus | null>(null)
   const [starting, setStarting] = useState(false)
   const [endpointOk, setEndpointOk] = useState<boolean | null>(null)
+  const [checkingEndpoint, setCheckingEndpoint] = useState(false)
 
   const checkEndpoint = useCallback(async (ep: string) => {
     if (!ep) { setEndpointOk(null); return }
     setEndpointOk(null)
+    setCheckingEndpoint(true)
     try {
       const url = ep.replace(/\/+$/, '')
-      await fetch(url, { method: 'POST', signal: AbortSignal.timeout(5000) })
+      await fetch(url, { method: 'POST', mode: 'no-cors', signal: AbortSignal.timeout(5000) })
       setEndpointOk(true)
     } catch {
       setEndpointOk(false)
     }
+    setCheckingEndpoint(false)
   }, [])
 
   const check = async () => {
@@ -309,7 +312,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
     } else {
       try {
         const ep = settings.crawl4aiEndpoint.replace(/\/+$/, '')
-        await fetch(ep, { method: 'POST', signal: AbortSignal.timeout(5000) })
+        await fetch(ep, { method: 'POST', mode: 'no-cors', signal: AbortSignal.timeout(5000) })
         setStatus({ running: true, dockerAvailable: false, containerExists: false, starting: false, endpoint: ep })
       } catch {
         setStatus({ running: false, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
@@ -378,7 +381,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
             <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
                     className="flex items-center rounded-md border border-border p-1 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
                     title="Check endpoint">
-              <RefreshCw className="h-3 w-3" />
+              <RefreshCw className={`h-3 w-3 ${checkingEndpoint ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
