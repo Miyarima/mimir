@@ -67,11 +67,11 @@ export default function ChatView({ conversation, settings, connected, onUpdateCo
     if (!connected) {
       const missing: string[] = []
       if (!settings.apiEndpoint) missing.push('API endpoint is not configured')
-      else missing.push(`API server at ${settings.apiEndpoint} is not reachable`)
+      else missing.push('API endpoint is not reachable (check Settings)')
       if (!settings.model) missing.push('No model selected')
       if (isResearch) {
         if (!settings.crawl4aiEndpoint) missing.push('Crawl4AI endpoint is not configured')
-        else missing.push(`Crawl4AI server at ${settings.crawl4aiEndpoint} is not reachable`)
+        else missing.push('Crawl4AI endpoint is not reachable (check Settings)')
       }
       setDisconnectedDetail(missing)
       setShowDisconnected(true)

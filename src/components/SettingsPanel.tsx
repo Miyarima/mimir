@@ -112,9 +112,9 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                     <span className="text-sm font-medium text-foreground/90">API Endpoint</span>
                     {loadingModels && <Loader2 size={12} className="animate-spin text-primary/70" />}
                   </div>
-                  <input type="text" value={settings.apiEndpoint}
+                  <input type="text"
                          onChange={e => update('apiEndpoint', e.target.value)}
-                         placeholder="http://localhost:11434/v1"
+                         placeholder={settings.apiEndpoint || 'http://localhost:11434/v1'}
                          className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
                 </div>
               </div>
@@ -287,12 +287,21 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
   const [starting, setStarting] = useState(false)
 
   const check = async () => {
-    if (!window.electronAPI?.crawl4ai) return
-    const [s, starting] = await Promise.all([
-      window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
-      window.electronAPI.crawl4ai.isStarting(),
-    ])
-    setStatus(starting ? { ...s, starting: true } : s)
+    if (window.electronAPI?.crawl4ai) {
+      const [s, starting] = await Promise.all([
+        window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
+        window.electronAPI.crawl4ai.isStarting(),
+      ])
+      setStatus(starting ? { ...s, starting: true } : s)
+    } else {
+      try {
+        const ep = settings.crawl4aiEndpoint.replace(/\/+$/, '')
+        await fetch(ep, { method: 'POST', signal: AbortSignal.timeout(5000) })
+        setStatus({ running: true, dockerAvailable: false, containerExists: false, starting: false, endpoint: ep })
+      } catch {
+        setStatus({ running: false, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
+      }
+    }
   }
 
   useEffect(() => {
@@ -323,7 +332,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
   }
 
   const statusDot = !status ? (window.electronAPI?.crawl4ai ? 'bg-muted-foreground' : 'bg-muted-foreground/40') : status.starting ? 'bg-primary animate-pulse' : status.running ? 'bg-primary shadow-glow' : 'bg-destructive'
-  const statusLabel = !status ? (window.electronAPI?.crawl4ai ? 'Checking…' : 'Desktop app only') : status.starting ? 'Starting…' : status.running ? 'Running' : status.dockerAvailable ? 'Stopped' : 'Docker not found'
+  const statusLabel = !status ? (window.electronAPI?.crawl4ai ? 'Checking…' : 'Desktop app only') : status.starting ? 'Starting…' : status.running ? 'Running' : status.dockerAvailable ? 'Stopped' : window.electronAPI?.crawl4ai ? 'Docker not found' : 'Not reachable'
 
   return (
     <section className="mb-8">
