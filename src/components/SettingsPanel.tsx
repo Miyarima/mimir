@@ -112,9 +112,9 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                     <span className="text-sm font-medium text-foreground/90">API Endpoint</span>
                     {loadingModels && <Loader2 size={12} className="animate-spin text-primary/70" />}
                   </div>
-                  <input type="text"
+                  <input type="text" value={settings.apiEndpoint}
                          onChange={e => update('apiEndpoint', e.target.value)}
-                         placeholder={settings.apiEndpoint || 'http://localhost:11434/v1'}
+                         placeholder="http://localhost:11434/v1"
                          className="mt-0.5 w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
                 </div>
               </div>
@@ -287,12 +287,22 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
   const [starting, setStarting] = useState(false)
 
   const check = async () => {
-    if (!window.electronAPI?.crawl4ai) return
-    const [s, starting] = await Promise.all([
-      window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
-      window.electronAPI.crawl4ai.isStarting(),
-    ])
-    setStatus(starting ? { ...s, starting: true } : s)
+    if (window.electronAPI?.crawl4ai) {
+      const [s, starting] = await Promise.all([
+        window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
+        window.electronAPI.crawl4ai.isStarting(),
+      ])
+      setStatus(starting ? { ...s, starting: true } : s)
+    } else {
+      // Browser dev mode fallback: try a simple fetch to the endpoint
+      try {
+        const ep = settings.crawl4aiEndpoint.replace(/\/+$/, '')
+        const res = await fetch(ep, { method: 'POST', signal: AbortSignal.timeout(5000) })
+        setStatus({ running: res.ok, dockerAvailable: false, containerExists: false, starting: false, endpoint: ep })
+      } catch {
+        setStatus({ running: false, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
+      }
+    }
   }
 
   useEffect(() => {
