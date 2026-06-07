@@ -355,18 +355,18 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
         Crawl4AI
       </h2>
       <div className="rounded-2xl border border-border bg-card/60">
-        <div className="flex items-start gap-3 px-4 py-3.5">
+        <div className="flex items-center gap-3 px-4 py-3.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
             <Globe className="h-4 w-4" />
           </span>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <div className="flex items-center gap-1.5">
+            <div className="mt-0.5 flex items-center gap-1.5">
               <input type="text" value={settings.crawl4aiEndpoint}
                      onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
                      placeholder="http://localhost:8000"
                      className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
-              <span className={`flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs leading-none ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
+              <span className={`flex shrink-0 items-center gap-1.5 text-xs ${endpointOk !== null ? (endpointOk ? 'text-primary/70' : 'text-destructive/70') : 'text-muted-foreground/50'}`}>
                 {endpointOk !== null ? (
                   <span className={`h-2 w-2 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
                 ) : (
