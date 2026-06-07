@@ -361,7 +361,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </span>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <div className="mt-0.5 flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5">
               <input type="text" value={settings.crawl4aiEndpoint}
                      onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
                      placeholder="http://localhost:8000"
