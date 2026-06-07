@@ -287,22 +287,12 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
   const [starting, setStarting] = useState(false)
 
   const check = async () => {
-    if (window.electronAPI?.crawl4ai) {
-      const [s, starting] = await Promise.all([
-        window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
-        window.electronAPI.crawl4ai.isStarting(),
-      ])
-      setStatus(starting ? { ...s, starting: true } : s)
-    } else {
-      // Browser dev mode fallback: try a simple fetch to the endpoint
-      try {
-        const ep = settings.crawl4aiEndpoint.replace(/\/+$/, '')
-        const res = await fetch(ep, { method: 'POST', signal: AbortSignal.timeout(5000) })
-        setStatus({ running: res.ok, dockerAvailable: false, containerExists: false, starting: false, endpoint: ep })
-      } catch {
-        setStatus({ running: false, dockerAvailable: false, containerExists: false, starting: false, endpoint: settings.crawl4aiEndpoint })
-      }
-    }
+    if (!window.electronAPI?.crawl4ai) return
+    const [s, starting] = await Promise.all([
+      window.electronAPI.crawl4ai.status(settings.crawl4aiEndpoint),
+      window.electronAPI.crawl4ai.isStarting(),
+    ])
+    setStatus(starting ? { ...s, starting: true } : s)
   }
 
   useEffect(() => {
@@ -332,8 +322,8 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
     await check()
   }
 
-  const statusDot = !status ? 'bg-muted-foreground' : status.starting ? 'bg-primary animate-pulse' : status.running ? 'bg-primary shadow-glow' : 'bg-destructive'
-  const statusLabel = !status ? 'Checking…' : status.starting ? 'Starting…' : status.running ? 'Running' : status.dockerAvailable ? 'Stopped' : 'Docker not found'
+  const statusDot = !status ? (window.electronAPI?.crawl4ai ? 'bg-muted-foreground' : 'bg-muted-foreground/40') : status.starting ? 'bg-primary animate-pulse' : status.running ? 'bg-primary shadow-glow' : 'bg-destructive'
+  const statusLabel = !status ? (window.electronAPI?.crawl4ai ? 'Checking…' : 'Desktop app only') : status.starting ? 'Starting…' : status.running ? 'Running' : status.dockerAvailable ? 'Stopped' : 'Docker not found'
 
   return (
     <section className="mb-8">
