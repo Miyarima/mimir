@@ -459,6 +459,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
           <ChatView
             conversation={activeConv}
             settings={settings}
+            connected={connectionStatus === 'connected'}
             onUpdateConversation={handleUpdateConversation}
             onRename={handleRenameConversation}
             onStartResearch={handleStartResearch}
@@ -467,6 +468,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
           <ChatView
             conversation={null}
             settings={settings}
+            connected={connectionStatus === 'connected'}
             onUpdateConversation={handleUpdateConversation}
             onRename={handleRenameConversation}
             onStartResearch={handleStartResearch}

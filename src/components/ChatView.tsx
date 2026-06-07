@@ -7,6 +7,7 @@ import { chat } from '../services/api'
 interface ChatViewProps {
   conversation: Conversation | null
   settings: Settings
+  connected: boolean
   onUpdateConversation: (conv: Conversation) => void
   onRename: (id: string, title: string) => void
   onStartResearch: (question: string, breadth?: number, depth?: number) => void
@@ -25,10 +26,12 @@ const commands = [
   { name: '/deep B,D', desc: 'Research with breadth B and depth D' },
 ]
 
-export default function ChatView({ conversation, settings, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
+export default function ChatView({ conversation, settings, connected, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [cmdIndex, setCmdIndex] = useState(0)
+  const [showDisconnected, setShowDisconnected] = useState(false)
+  const [disconnectedDetail, setDisconnectedDetail] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -57,10 +60,35 @@ export default function ChatView({ conversation, settings, onUpdateConversation,
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
+
     const question = input.trim()
+    const isResearch = question.toLowerCase().includes('/research') || question.toLowerCase().includes('/deep')
+
+    if (!connected) {
+      const missing: string[] = []
+      if (!settings.apiEndpoint) missing.push('API endpoint is not configured')
+      else missing.push(`API server at ${settings.apiEndpoint} is not reachable`)
+      if (!settings.model) missing.push('No model selected')
+      if (isResearch) {
+        if (!settings.crawl4aiEndpoint) missing.push('Crawl4AI endpoint is not configured')
+        else missing.push(`Crawl4AI server at ${settings.crawl4aiEndpoint} is not reachable`)
+      }
+      setDisconnectedDetail(missing)
+      setShowDisconnected(true)
+      return
+    }
+
+    const missing: string[] = []
+    if (!settings.apiEndpoint) missing.push('API endpoint is not configured')
+    if (!settings.model) missing.push('No model selected')
+    if (isResearch && !settings.crawl4aiEndpoint) missing.push('Crawl4AI endpoint is not configured')
+    if (missing.length > 0) {
+      setDisconnectedDetail(missing)
+      setShowDisconnected(true)
+      return
+    }
     setInput('')
 
-    const isResearch = question.toLowerCase().includes('/research') || question.toLowerCase().includes('/deep')
     if (isResearch) {
       let q = question.replace(/\/research/gi, '').trim()
       let breadth: number | undefined
@@ -163,7 +191,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
   const hasMessages = (conversation?.messages.length ?? 0) > 0
 
   return (
-    <>
+    <div className="relative flex flex-col h-full">
       {!hasMessages ? (
         /* Empty state */
         <div className="relative flex flex-1 items-center justify-center overflow-y-auto px-6">
@@ -308,6 +336,35 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
           </p>
         </div>
       </div>
-    </>
+
+      {showDisconnected && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80" onClick={() => setShowDisconnected(false)}>
+          <div className="w-80 rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-destructive/10">
+                <Send className="h-5 w-5 text-destructive" />
+              </div>
+              <h3 className="text-sm font-semibold text-foreground">Not Connected</h3>
+              {disconnectedDetail.length === 1 ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">{disconnectedDetail[0]}</p>
+              ) : (
+                <ul className="text-xs text-muted-foreground text-left space-y-1.5">
+                  {disconnectedDetail.map((d, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-destructive shrink-0" />
+                      {d}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button onClick={() => setShowDisconnected(false)}
+                      className="rounded-lg border border-border bg-secondary px-4 py-1.5 text-xs text-foreground transition hover:bg-secondary/80">
+                OK
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
