@@ -289,6 +289,7 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
 
   const checkEndpoint = useCallback(async (ep: string) => {
     if (!ep) { setEndpointOk(null); return }
+    setEndpointOk(null)
     try {
       const url = ep.replace(/\/+$/, '')
       await fetch(url, { method: 'POST', signal: AbortSignal.timeout(5000) })
@@ -365,11 +366,13 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
                      onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
                      placeholder="http://localhost:8000"
                      className="mt-0.5 flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
-              {endpointOk !== null && (
-                <span className={`mt-0.5 flex shrink-0 items-center gap-1 text-[10px] ${endpointOk ? 'text-primary/70' : 'text-destructive/70'}`}>
+              {endpointOk !== null ? (
+                <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)} className="mt-0.5 flex shrink-0 items-center gap-1 text-[10px] transition hover:opacity-80">
                   <span className={`h-1.5 w-1.5 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
                   {endpointOk ? 'Reachable' : 'Unreachable'}
-                </span>
+                </button>
+              ) : (
+                <span className="mt-0.5 shrink-0 text-[10px] text-muted-foreground/50">Checking…</span>
               )}
             </div>
           </div>
