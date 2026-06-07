@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2 } from 'lucide-react'
+import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2, RefreshCw } from 'lucide-react'
 import type { Crawl4AIStatus, Settings } from '../types'
 
 interface SettingsPanelProps {
@@ -361,20 +361,27 @@ function Crawl4AISection({ settings, onUpdate }: { settings: Settings; onUpdate:
           </span>
           <div className="flex flex-1 flex-col">
             <span className="text-sm font-medium text-foreground/90">Crawl4AI Endpoint</span>
-            <div className="flex items-center gap-2">
-              <input type="text" value={settings.crawl4aiEndpoint}
-                     onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
-                     placeholder="http://localhost:8000"
-                     className="mt-0.5 flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
-              {endpointOk !== null ? (
-                <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)} className="mt-0.5 flex shrink-0 items-center gap-1 text-[10px] transition hover:opacity-80">
-                  <span className={`h-1.5 w-1.5 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
-                  {endpointOk ? 'Reachable' : 'Unreachable'}
+              <div className="mt-0.5 flex items-center gap-1.5">
+                <input type="text" value={settings.crawl4aiEndpoint}
+                       onChange={e => onUpdate('crawl4aiEndpoint', e.target.value)}
+                       placeholder="http://localhost:8000"
+                       className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none" />
+                <button onClick={() => checkEndpoint(settings.crawl4aiEndpoint)}
+                        className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] transition hover:bg-secondary"
+                        title="Check endpoint">
+                  {endpointOk !== null ? (
+                    <>
+                      <span className={`h-1.5 w-1.5 rounded-full ${endpointOk ? 'bg-primary' : 'bg-destructive'}`} />
+                      {endpointOk ? 'Reachable' : 'Unreachable'}
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="h-2.5 w-2.5 animate-spin text-muted-foreground/50" />
+                      <span className="text-muted-foreground/50">Checking</span>
+                    </>
+                  )}
                 </button>
-              ) : (
-                <span className="mt-0.5 shrink-0 text-[10px] text-muted-foreground/50">Checking…</span>
-              )}
-            </div>
+              </div>
           </div>
         </div>
         <div className="mx-4 h-px bg-border" />
