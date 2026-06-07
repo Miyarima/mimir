@@ -8,19 +8,13 @@ A minimalistic, dark-themed desktop chat interface that connects to any OpenAI-c
 
 ## Features
 
-- **Chat interface** — stream responses from any OpenAI-compatible API endpoint
-- **Deep research** — multi-step autonomous research: sub-query generation → web search → analysis → report synthesis. Runs persist in the background even when navigating away.
-- **Research timeline** — live progress view showing queries and sources as they're collected; skeletons shown during initial loading phase; timeline hidden once the final report is ready
-- **Smart loading UX** — loading indicator auto-positions at ~60% from viewport top during research, auto-scrolls there while loading, and scrolls to top on completion
-- **Persistent storage** — all conversations saved to local SQLite database, survive app restarts
-- **Dark theme** — premium dark UI with OKLCH color tokens, gradient accents, ambient glow
-- **LaTeX rendering** — inline and block math via KaTeX
-- **Connection status** — live ping to your API endpoint shows Connected / Disconnected
-- **Conversation management** — create, select, rename inline, delete conversations
-- **AI-powered titles** — automatic title generation for both chat and research conversations (visible in sidebar without "Research: " prefix)
-- **Cross-platform** — Windows, macOS, Linux builds via electron-builder
-- **CJK font support** — bundled Chinese, Japanese, and Korean fonts
-- **Vegvísir logo** — custom Norse-themed SVG logo
+- **Chat with any local LLM** — stream responses from any OpenAI-compatible backend (Ollama, llama.cpp, vLLM, LM Studio)
+- **Autonomous deep research** — multi-step recursive research: generates sub-queries, searches the web, extracts content, and synthesizes a final report. Runs persist in the background.
+- **Live research timeline** — see queries, sources, and learnings appear in real time as each step completes
+- **Persistent conversations** — all chats and research results saved to local SQLite, survive restarts
+- **LaTeX math rendering** — inline and block math via KaTeX
+- **Conversation management** — create, rename, delete, organized into Chat and Deep Research sections
+- **Cross-platform** — Windows, macOS, and Linux builds
 
 ## Getting Started
 
