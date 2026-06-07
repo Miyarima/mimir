@@ -124,6 +124,12 @@ mimir/
 └── package.json
 ```
 
+## Acknowledgments
+
+- **[dzhng/deep-research](https://github.com/dzhng/deep-research)** — The recursive deep research algorithm (sub-query generation → search → analysis → recursion) that Mimir's research engine is ported from
+- **[Crawl4AI](https://github.com/unclecode/crawl4ai)** — Web content extraction for deep research source analysis
+- **DuckDuckGo**, **Tavily**, **SearXNG** — Search providers used for web queries during research
+
 ## License
 
 MIT
