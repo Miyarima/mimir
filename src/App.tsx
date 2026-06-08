@@ -3,9 +3,10 @@ import Sidebar from './components/Sidebar'
 import ChatView from './components/ChatView'
 import ResearchView from './components/ResearchView'
 import SettingsPanel from './components/SettingsPanel'
+import KnowledgeBase from './components/KnowledgeBase'
 import { loadSettings, saveSettings, defaultSettings } from './store/settings'
 import { runDeepResearch } from './services/research'
-import type { Conversation, ResearchResult, ResearchStep, ResearchProgress, Settings, Message, Source } from './types'
+import type { Conversation, ResearchResult, ResearchStep, ResearchProgress, Settings, Skill, Message, Source } from './types'
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
@@ -19,6 +20,7 @@ function createConversation(isResearch = false): Conversation {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     isResearch,
+    archived: false,
   }
 }
 
@@ -38,9 +40,11 @@ interface ResearchRun {
 export default function App() {
   const [settings, setSettings] = useState<Settings>({ ...defaultSettings })
   const [conversations, setConversations] = useState<Conversation[]>([])
+  const [skills, setSkills] = useState<Skill[]>([])
   const [ready, setReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showKnowledgeBase, setShowKnowledgeBase] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking')
@@ -52,6 +56,13 @@ export default function App() {
     if (!settingsLoaded.current) return
     saveSettings(settings)
   }, [settings])
+
+  useEffect(() => {
+    if (!ready) return
+    try {
+      localStorage.setItem('mimir-skills', JSON.stringify(skills))
+    } catch {}
+  }, [skills, ready])
 
   useEffect(() => {
     document.documentElement.className = settings.theme === 'emerald' ? '' : `theme-${settings.theme}`
@@ -107,21 +118,33 @@ export default function App() {
             return { ...r, messages }
           }))
 
-          // Restore researchResult from localStorage (not stored in DB)
-          try {
-            const stored = localStorage.getItem('mimir-conversations')
-            if (stored) {
-              const parsed: Conversation[] = JSON.parse(stored)
-              for (const conv of loaded) {
-                const match = parsed.find(c => c.id === conv.id)
-                if (match?.researchResult) conv.researchResult = match.researchResult
+            // Restore researchResult & archived from localStorage (not stored in DB)
+            try {
+              const stored = localStorage.getItem('mimir-conversations')
+              if (stored) {
+                const parsed: Conversation[] = JSON.parse(stored)
+                for (const conv of loaded) {
+                  const match = parsed.find(c => c.id === conv.id)
+                  if (match?.researchResult) conv.researchResult = match.researchResult
+                  if (match?.archived) conv.archived = true
+                }
               }
-            }
-          } catch {}
+            } catch {}
 
           setConversations(loaded)
         }
       }
+      // Load skills
+      if (!window.electronAPI?.db) {
+        const skillStore = localStorage.getItem('mimir-skills')
+        if (skillStore) {
+          try { setSkills(JSON.parse(skillStore)) } catch {}
+        }
+      } else {
+        const loadedSkills = await window.electronAPI.db.loadSkills()
+        setSkills(loadedSkills)
+      }
+
       setDraftId(generateId())
       setReady(true)
     }
@@ -165,13 +188,44 @@ export default function App() {
     setDraftId(id)
     setActiveId(id)
     setShowSettings(false)
+    setShowKnowledgeBase(false)
   }, [])
 
   const handleSelectConversation = useCallback(async (id: string) => {
     setActiveId(id)
     setDraftId(null)
     setShowSettings(false)
+    setShowKnowledgeBase(false)
   }, [])
+
+  const handleKnowledgeBase = useCallback(() => {
+    setShowKnowledgeBase(true)
+    setShowSettings(false)
+    setDraftId(null)
+    setActiveId(null)
+  }, [])
+
+  const handleCloseKnowledgeBase = useCallback(() => {
+    setShowKnowledgeBase(false)
+    setDraftId(generateId())
+  }, [])
+
+  const handleArchiveConversation = useCallback((id: string) => {
+    setConversations(prev => {
+      const updated = prev.map(c => c.id === id ? { ...c, archived: !c.archived } : c)
+      if (activeId === id) {
+        setActiveId(null)
+        setDraftId(generateId())
+      }
+      if (window.electronAPI?.db) {
+        const conv = updated.find(c => c.id === id)
+        if (conv) {
+          window.electronAPI.db.updateConversation({ id, messages: conv.messages })
+        }
+      }
+      return updated
+    })
+  }, [activeId])
 
   const handleDeleteConversation = useCallback(async (id: string) => {
     cancelledRef.current.add(id)
@@ -205,6 +259,26 @@ export default function App() {
     setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c))
     if (window.electronAPI?.db) {
       await window.electronAPI.db.renameConversation(id, title)
+    }
+  }, [])
+
+  const handleSaveSkill = useCallback((skill: Skill) => {
+    setSkills(prev => {
+      const existing = prev.findIndex(s => s.id === skill.id)
+      const updated = existing >= 0
+        ? prev.map((s, i) => i === existing ? skill : s)
+        : [...prev, skill]
+      if (window.electronAPI?.db) {
+        window.electronAPI.db.saveSkill(skill)
+      }
+      return updated
+    })
+  }, [])
+
+  const handleDeleteSkill = useCallback((id: string) => {
+    setSkills(prev => prev.filter(s => s.id !== id))
+    if (window.electronAPI?.db) {
+      window.electronAPI.db.deleteSkill(id)
     }
   }, [])
 
@@ -290,6 +364,7 @@ export default function App() {
           return { ...prev, [convId]: { ...r, serpQueries: queries } }
         })
       },
+      skills,
     ).then(result => {
       if (cancelledRef.current.has(convId)) return
 
@@ -392,8 +467,11 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
         onNew={handleNewConversation}
         onDelete={handleDeleteConversation}
         onRename={handleRenameConversation}
-        onSettings={() => setShowSettings(true)}
+        onArchive={handleArchiveConversation}
+        onSettings={() => { setShowSettings(true); setShowKnowledgeBase(false) }}
+        onKnowledgeBase={handleKnowledgeBase}
         showSettings={showSettings}
+        showKnowledgeBase={showKnowledgeBase}
         sidebarOpen={sidebarOpen}
       />
 
@@ -411,7 +489,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
               </svg>
             </button>
             <h1 className="min-w-0 truncate text-sm font-medium text-foreground/90">
-              {activeConv?.title || 'New conversation'}
+              {showKnowledgeBase ? 'Knowledge Base' : activeConv?.title || 'New conversation'}
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as any}>
@@ -463,6 +541,17 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             onUpdate={setSettings}
             onClose={() => setShowSettings(false)}
           />
+        ) : showKnowledgeBase ? (
+          <KnowledgeBase
+            conversations={conversations}
+            skills={skills}
+            settings={settings}
+            onSelect={handleSelectConversation}
+            onArchive={handleArchiveConversation}
+            onSaveSkill={handleSaveSkill}
+            onDeleteSkill={handleDeleteSkill}
+            onClose={handleCloseKnowledgeBase}
+          />
         ) : displayResearch ? (
           <ResearchView
             question={displayResearch.question}
@@ -482,6 +571,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
           <ChatView
             conversation={activeConv}
             settings={settings}
+            skills={skills}
             connected={connectionStatus === 'connected'}
             onUpdateConversation={handleUpdateConversation}
             onRename={handleRenameConversation}
@@ -491,6 +581,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
           <ChatView
             conversation={null}
             settings={settings}
+            skills={skills}
             connected={connectionStatus === 'connected'}
             onUpdateConversation={handleUpdateConversation}
             onRename={handleRenameConversation}

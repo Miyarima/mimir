@@ -64,6 +64,7 @@ export interface Conversation {
   createdAt: number
   updatedAt: number
   isResearch: boolean
+  archived: boolean
   researchResult?: ResearchResult
 }
 
@@ -71,6 +72,16 @@ export interface ConversationListItem {
   id: string
   title: string
   isResearch: boolean
+  createdAt: number
+  updatedAt: number
+}
+
+export interface Skill {
+  id: string
+  name: string
+  description: string
+  instructions: string
+  enabled: boolean
   createdAt: number
   updatedAt: number
 }
@@ -98,6 +109,9 @@ declare global {
         deleteConversation: (id: string) => Promise<void>
         loadSettings: () => Promise<Record<string, string>>
         saveSetting: (key: string, value: string) => Promise<void>
+        loadSkills: () => Promise<Skill[]>
+        saveSkill: (skill: Skill) => Promise<void>
+        deleteSkill: (id: string) => Promise<void>
       }
       crawl4ai: {
         status: (endpoint?: string) => Promise<Crawl4AIStatus>

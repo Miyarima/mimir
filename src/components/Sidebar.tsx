@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { MessageSquare, Settings, Plus, Sparkles, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { MessageSquare, Settings, Plus, Sparkles, MoreHorizontal, Pencil, Trash2, ChevronDown, ChevronRight, Library, Archive } from 'lucide-react'
 import type { Conversation } from '../types'
 
 interface SidebarProps {
@@ -9,12 +9,15 @@ interface SidebarProps {
   onNew: () => void
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
+  onArchive: (id: string) => void
   onSettings: () => void
+  onKnowledgeBase: () => void
   showSettings: boolean
+  showKnowledgeBase: boolean
   sidebarOpen: boolean
 }
 
-function ConversationItem({ conv, index, total, activeId, renamingId, renameValue, menuState, onSelect, onRename, onDelete, setMenuState, setRenamingId, setRenameValue, inputRef, menuRef }: {
+function ConversationItem({ conv, index, total, activeId, renamingId, renameValue, menuState, onSelect, onRename, onDelete, onArchive, setMenuState, setRenamingId, setRenameValue, inputRef, menuRef }: {
   conv: Conversation
   index: number
   total: number
@@ -25,6 +28,7 @@ function ConversationItem({ conv, index, total, activeId, renamingId, renameValu
   onSelect: (id: string) => void
   onRename: (id: string, title: string) => void
   onDelete: (id: string) => void
+  onArchive: (id: string) => void
   setMenuState: (s: { id: string; top: number; right: number } | null) => void
   setRenamingId: (s: string | null) => void
   setRenameValue: (s: string) => void
@@ -88,6 +92,11 @@ function ConversationItem({ conv, index, total, activeId, renamingId, renameValu
             <Pencil className="h-3.5 w-3.5" />
             Rename
           </button>
+          <button onClick={() => { onArchive(conv.id); setMenuState(null) }}
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-secondary">
+            <Archive className="h-3.5 w-3.5" />
+            {conv.archived ? 'Unarchive' : 'Archive'}
+          </button>
           <button onClick={() => { onDelete(conv.id); setMenuState(null) }}
                   className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-destructive transition hover:bg-destructive/15">
             <Trash2 className="h-3.5 w-3.5" />
@@ -99,7 +108,7 @@ function ConversationItem({ conv, index, total, activeId, renamingId, renameValu
   )
 }
 
-export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, onSettings, showSettings, sidebarOpen }: SidebarProps) {
+export default function Sidebar({ conversations, activeId, onSelect, onNew, onDelete, onRename, onArchive, onSettings, onKnowledgeBase, showSettings, showKnowledgeBase, sidebarOpen }: SidebarProps) {
   const [menuState, setMenuState] = useState<{ id: string; top: number; right: number } | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
   const [renameValue, setRenameValue] = useState('')
@@ -107,8 +116,8 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
   const menuRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  const chats = conversations.filter(c => !c.isResearch)
-  const deepResearch = conversations.filter(c => c.isResearch)
+  const chats = conversations.filter(c => !c.isResearch && !c.archived)
+  const deepResearch = conversations.filter(c => c.isResearch && !c.archived)
 
   useEffect(() => {
     if (renamingId && inputRef.current) inputRef.current.focus()
@@ -159,6 +168,7 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
                   onSelect={onSelect}
                   onRename={onRename}
                   onDelete={onDelete}
+                  onArchive={onArchive}
                   setMenuState={setMenuState}
                   setRenamingId={setRenamingId}
                   setRenameValue={setRenameValue}
@@ -203,7 +213,16 @@ export default function Sidebar({ conversations, activeId, onSelect, onNew, onDe
         </div>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border p-2">
+        <div className="border-t border-sidebar-border p-2 space-y-1">
+          <button onClick={onKnowledgeBase}
+                  className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
+                    showKnowledgeBase
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-sidebar-foreground/80 hover:bg-secondary/60'
+                  }`}>
+            <Library className="h-4 w-4 opacity-70" />
+            Knowledge Base
+          </button>
           <button onClick={onSettings}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition ${
                     showSettings

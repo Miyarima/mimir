@@ -1,4 +1,4 @@
-import type { ResearchProgress, ResearchResult, ResearchStep, Settings, Source } from '../types'
+import type { ResearchProgress, ResearchResult, ResearchStep, Settings, Skill, Source } from '../types'
 import { runDeepResearch as runNewDeepResearch } from './deep-research/deep-research'
 
 function generateId(): string {
@@ -11,8 +11,9 @@ export async function runDeepResearch(
   onStep: (step: ResearchStep) => void,
   onReport: (chunk: string) => void,
   onSources?: (query: string, sources: Source[]) => void,
-  onProgress?: (progress: ResearchProgress) => void,
+  onProgress?: (ResearchProgress) => void,
   onSerpQueries?: (queries: string[]) => void,
+  skills?: Skill[],
 ): Promise<ResearchResult> {
   const allSources: Source[] = []
   const steps: ResearchStep[] = []
@@ -33,6 +34,7 @@ export async function runDeepResearch(
       sourceHandler(query, sources)
     },
     onSerpQueries,
+    skills,
   )
 
   onReport(result.report)

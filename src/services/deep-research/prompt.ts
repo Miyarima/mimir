@@ -1,6 +1,8 @@
-export const systemPrompt = () => {
+import type { Skill } from '../../types'
+
+export const systemPrompt = (skills?: Skill[]) => {
   const now = new Date().toISOString();
-  return `You are an expert researcher. Today is ${now}. Follow these instructions when responding:
+  let prompt = `You are an expert researcher. Today is ${now}. Follow these instructions when responding:
   - You may be asked to research subjects that is after your knowledge cutoff, assume the user is right when presented with news.
   - The user is a highly experienced analyst, no need to simplify it, be as detailed as possible and make sure your response is correct.
   - Be highly organized.
@@ -12,4 +14,16 @@ export const systemPrompt = () => {
   - Value good arguments over authorities, the source is irrelevant.
   - Consider new technologies and contrarian ideas, not just the conventional wisdom.
   - You may use high levels of speculation or prediction, just flag it for me.`;
+
+  if (skills) {
+    const enabled = skills.filter(s => s.enabled)
+    if (enabled.length > 0) {
+      prompt += '\n\nYou also have access to these skills. Use their guidance when relevant to the research:\n'
+      for (const skill of enabled) {
+        prompt += `\n--- ${skill.name} ---\n${skill.description || 'No description'}`
+      }
+    }
+  }
+
+  return prompt
 };

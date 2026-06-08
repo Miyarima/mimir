@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import path from 'path'
 import { exec } from 'child_process'
-import { initDatabase, loadConversations, createConversation, updateConversation, renameConversation, deleteConversation, loadMessages, loadSettings, saveSetting } from './database'
+import { initDatabase, loadConversations, createConversation, updateConversation, renameConversation, deleteConversation, loadMessages, loadSettings, saveSetting, loadSkills, saveSkill, deleteSkill } from './database'
 import { checkStatus, startCrawl4AI, stopCrawl4AI, isStarting } from './crawl4ai'
 
 let mainWindow: BrowserWindow | null = null
@@ -199,6 +199,28 @@ ipcMain.handle('db:load-settings', () => {
 
 ipcMain.handle('db:save-setting', (_, key: string, value: string) => {
   saveSetting(key, value)
+})
+
+// Skills IPC handlers
+ipcMain.handle('db:load-skills', () => {
+  const rows = loadSkills()
+  return rows.map(r => ({
+    id: r.id,
+    name: r.name,
+    description: r.description,
+    instructions: r.instructions,
+    enabled: !!r.enabled,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+  }))
+})
+
+ipcMain.handle('db:save-skill', (_, skill: { id: string; name: string; description: string; instructions: string; enabled: boolean; createdAt: number; updatedAt: number }) => {
+  saveSkill(skill)
+})
+
+ipcMain.handle('db:delete-skill', (_, id: string) => {
+  deleteSkill(id)
 })
 
 // Crawl4AI IPC handlers

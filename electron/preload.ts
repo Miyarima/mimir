@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteConversation: (id: string) => ipcRenderer.invoke('db:delete-conversation', id),
     loadSettings: () => ipcRenderer.invoke('db:load-settings'),
     saveSetting: (key: string, value: string) => ipcRenderer.invoke('db:save-setting', key, value),
+    loadSkills: () => ipcRenderer.invoke('db:load-skills'),
+    saveSkill: (skill: { id: string; name: string; description: string; instructions: string; enabled: boolean; createdAt: number; updatedAt: number }) => ipcRenderer.invoke('db:save-skill', skill),
+    deleteSkill: (id: string) => ipcRenderer.invoke('db:delete-skill', id),
   },
 
   crawl4ai: {

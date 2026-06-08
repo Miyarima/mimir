@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Sparkles, Search, Terminal, MessageSquare, Loader2 } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import type { Message, Conversation, Settings } from '../types'
-import { chat } from '../services/api'
+import { chat, buildMessagesWithSkills } from '../services/api'
+import type { Skill } from '../types'
 
 interface ChatViewProps {
   conversation: Conversation | null
   settings: Settings
+  skills: Skill[]
   connected: boolean
   onUpdateConversation: (conv: Conversation) => void
   onRename: (id: string, title: string) => void
@@ -26,7 +28,7 @@ const commands = [
   { name: '/deep B,D', desc: 'Research with breadth B and depth D' },
 ]
 
-export default function ChatView({ conversation, settings, connected, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
+export default function ChatView({ conversation, settings, skills, connected, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [cmdIndex, setCmdIndex] = useState(0)
@@ -134,10 +136,18 @@ export default function ChatView({ conversation, settings, connected, onUpdateCo
     updated.messages = [...updated.messages, assistantMsg]
     onUpdateConversation({ ...updated })
 
-    const history = updated.messages.slice(0, -1).map(m => ({
-      role: m.role as 'user' | 'assistant' | 'system',
-      content: m.content,
-    }))
+    // Last assistant message from the conversation (before the current turn)
+    const lastAssistantContent = conversation?.messages.filter(m => m.role === 'assistant').pop()?.content
+
+    const history = buildMessagesWithSkills(
+      updated.messages.slice(0, -1).map(m => ({
+        role: m.role as 'user' | 'assistant' | 'system',
+        content: m.content,
+      })),
+      skills,
+      question,
+      lastAssistantContent,
+    )
 
     try {
       let fullContent = ''

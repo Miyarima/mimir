@@ -70,6 +70,17 @@ export async function initDatabase(): Promise<void> {
       value TEXT NOT NULL
     )
   `)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS skills (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      instructions TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      created_at REAL NOT NULL,
+      updated_at REAL NOT NULL
+    )
+  `)
 
   save()
 }
@@ -149,6 +160,42 @@ export function loadSettings(): Record<string, string> {
   }
   stmt.free()
   return result
+}
+
+export interface SkillRow {
+  id: string
+  name: string
+  description: string
+  instructions: string
+  enabled: number
+  created_at: number
+  updated_at: number
+}
+
+export function loadSkills(): SkillRow[] {
+  if (!db) return []
+  const stmt = db.prepare('SELECT * FROM skills ORDER BY updated_at DESC')
+  const rows: SkillRow[] = []
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject() as unknown as SkillRow)
+  }
+  stmt.free()
+  return rows
+}
+
+export function saveSkill(skill: { id: string; name: string; description: string; instructions: string; enabled: boolean; createdAt: number; updatedAt: number }): void {
+  if (!db) return
+  db.run(
+    'INSERT OR REPLACE INTO skills (id, name, description, instructions, enabled, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [skill.id, skill.name, skill.description, skill.instructions, skill.enabled ? 1 : 0, skill.createdAt, skill.updatedAt]
+  )
+  save()
+}
+
+export function deleteSkill(id: string): void {
+  if (!db) return
+  db.run('DELETE FROM skills WHERE id = ?', [id])
+  save()
 }
 
 export function saveSetting(key: string, value: string): void {

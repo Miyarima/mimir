@@ -4,7 +4,7 @@ import { systemPrompt } from './prompt'
 import { trimPrompt } from './text-splitter'
 import { crawlUrl } from './crawl'
 import { search } from '../search'
-import type { Settings, Source, ResearchProgress, ResearchStep } from '../../types'
+import type { Settings, Skill, Source, ResearchProgress, ResearchStep } from '../../types'
 
 const ConcurrencyLimit = 2
 
@@ -18,15 +18,17 @@ async function generateSerpQueries({
   settings,
   numQueries = 3,
   learnings,
+  skills,
 }: {
   query: string
   settings: Settings
   numQueries?: number
   learnings?: string[]
+  skills?: Skill[]
 }): Promise<SerpQuery[]> {
   const res = await generateJSON<{ queries: SerpQuery[] }>(
     settings,
-    systemPrompt(),
+    systemPrompt(skills),
     `Given the following prompt from the user, generate a list of SERP queries to research the topic. Return a maximum of ${numQueries} queries, but feel free to return less if the original prompt is clear. Make sure each query is unique and not similar to each other: <prompt>${query}</prompt>\n\n${
       learnings
         ? `Here are some learnings from previous research, use them to generate more specific queries: ${learnings.join('\n')}`
@@ -47,16 +49,18 @@ async function processSerpResult({
   settings,
   numLearnings = 3,
   numFollowUpQuestions = 3,
+  skills,
 }: {
   query: string
   contents: string[]
   settings: Settings
   numLearnings?: number
   numFollowUpQuestions?: number
+  skills?: Skill[]
 }) {
   const res = await generateJSON<{ learnings: string[]; followUpQuestions: string[] }>(
     settings,
-    systemPrompt(),
+    systemPrompt(skills),
     trimPrompt(
       `Given the following contents from a SERP search for the query <query>${query}</query>, generate a list of learnings from the contents. Return a maximum of ${numLearnings} learnings, but feel free to return less if the contents are clear. Make sure each learning is unique and not similar to each other. The learnings should be concise and to the point, as detailed and information dense as possible. Make sure to include any entities like people, places, companies, products, things, etc in the learnings, as well as any exact metrics, numbers, or dates. The learnings will be used to research the topic further.\n\n<contents>${contents
         .map(content => `<content>\n${content}\n</content>`)
@@ -76,17 +80,19 @@ async function writeFinalReport({
   learnings,
   visitedUrls,
   settings,
+  skills,
 }: {
   prompt: string
   learnings: string[]
   visitedUrls: string[]
   settings: Settings
+  skills?: Skill[]
 }) {
   const learningsString = learnings.map(l => `<learning>\n${l}\n</learning>`).join('\n')
 
   const res = await generateJSON<{ reportMarkdown: string }>(
     settings,
-    systemPrompt(),
+    systemPrompt(skills),
     trimPrompt(
       `Given the following prompt from the user, write a final report on the topic using the learnings from research. Make it as as detailed as possible, aim for 3 or more pages, include ALL the learnings from research:\n\n<prompt>${prompt}</prompt>\n\nHere are all the learnings from previous research:\n\n<learnings>\n${learningsString}\n</learnings>`,
     ),
@@ -103,16 +109,18 @@ async function writeFinalAnswer({
   prompt,
   learnings,
   settings,
+  skills,
 }: {
   prompt: string
   learnings: string[]
   settings: Settings
+  skills?: Skill[]
 }) {
   const learningsString = learnings.map(l => `<learning>\n${l}\n</learning>`).join('\n')
 
   const res = await generateJSON<{ exactAnswer: string }>(
     settings,
-    systemPrompt(),
+    systemPrompt(skills),
     trimPrompt(
       `Given the following prompt from the user, write a final answer on the topic using the learnings from research. Follow the format specified in the prompt. Do not yap or babble or include any other text than the answer besides the format specified in the prompt. Keep the answer as concise as possible - usually it should be just a few words or maximum a sentence.\n\n<prompt>${prompt}</prompt>\n\nHere are all the learnings from research on the topic that you can use to help answer the prompt:\n\n<learnings>\n${learningsString}\n</learnings>`,
     ),
@@ -135,6 +143,7 @@ export async function deepResearch({
   onStep,
   onSerpQueries,
   stepCounter = { current: 0 },
+  skills,
 }: {
   query: string
   settings: Settings
@@ -146,6 +155,7 @@ export async function deepResearch({
   onStep?: (step: ResearchStep) => void
   onSerpQueries?: (queries: string[]) => void
   stepCounter?: { current: number }
+  skills?: Skill[]
 }): Promise<{ learnings: string[]; visitedUrls: string[] }> {
   const totalDepth = depth
   const totalBreadth = breadth
@@ -165,6 +175,7 @@ export async function deepResearch({
     settings,
     learnings,
     numQueries: breadth,
+    skills,
   })
 
   onSerpQueries?.(serpQueries.map(sq => sq.query))
@@ -228,6 +239,7 @@ export async function deepResearch({
             contents,
             settings,
             numFollowUpQuestions: newBreadth,
+            skills,
           })
           const allLearnings = [...learnings, ...newLearnings.learnings]
           const allUrls = [...visitedUrls, ...newUrls]
@@ -268,6 +280,7 @@ Follow-up research directions: ${newLearnings.followUpQuestions.map(q => `\n${q}
               onStep,
               onSerpQueries,
               stepCounter,
+              skills,
             })
           }
 
@@ -304,6 +317,7 @@ export async function runDeepResearch(
   onReportChunk: (chunk: string) => void,
   onSources: (query: string, sources: Source[]) => void,
   onSerpQueries?: (queries: string[]) => void,
+  skills?: Skill[],
 ): Promise<{ report: string; learnings: string[]; sources: Source[] }> {
   const breadth = settings.researchBreadth || 4
   const depth = settings.researchDepth || 2
@@ -326,6 +340,7 @@ export async function runDeepResearch(
     onProgress,
     onStep,
     onSerpQueries,
+    skills,
   })
 
   onProgress({
@@ -343,6 +358,7 @@ export async function runDeepResearch(
     learnings,
     visitedUrls,
     settings,
+    skills,
   })
 
   onReportChunk(report)
