@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Search, Terminal, MessageSquare, Loader2 } from 'lucide-react'
+import { Send, Sparkles, Search, Terminal, MessageSquare, Loader2, Paperclip, ChevronDown, Bot, X } from 'lucide-react'
 import MessageBubble from './MessageBubble'
-import type { Message, Conversation, Settings } from '../types'
+import Playbook from './Playbook'
+import type { Message, Conversation, Settings, FileAttachment, PlaybookPrompt } from '../types'
 import { chat, buildMessagesWithSkills } from '../services/api'
 import type { Skill } from '../types'
+import { readFile, formatFileSize } from '../services/file'
 
 interface ChatViewProps {
   conversation: Conversation | null
@@ -14,6 +16,7 @@ interface ChatViewProps {
   onRename: (id: string, title: string) => void
   onStartResearch: (question: string, breadth?: number, depth?: number) => void
   onDraftSubmit?: (question: string) => Conversation
+  onUpdateSettings: (settings: Settings) => void
 }
 
 const suggestions = [
@@ -28,14 +31,19 @@ const commands = [
   { name: '/deep B,D', desc: 'Research with breadth B and depth D' },
 ]
 
-export default function ChatView({ conversation, settings, skills, connected, onUpdateConversation, onRename, onStartResearch, onDraftSubmit }: ChatViewProps) {
+export default function ChatView({ conversation, settings, skills, connected, onUpdateConversation, onRename, onStartResearch, onDraftSubmit, onUpdateSettings }: ChatViewProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [cmdIndex, setCmdIndex] = useState(0)
   const [showDisconnected, setShowDisconnected] = useState(false)
   const [disconnectedDetail, setDisconnectedDetail] = useState<string[]>([])
+  const [attachments, setAttachments] = useState<FileAttachment[]>([])
+  const [showModelDropdown, setShowModelDropdown] = useState(false)
+  const [models, setModels] = useState<string[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const modelDropdownRef = useRef<HTMLDivElement>(null)
 
   const showCmd = input.startsWith('/') && input.indexOf(' ') === -1
 
@@ -59,6 +67,52 @@ export default function ChatView({ conversation, settings, skills, connected, on
     el.style.height = 'auto'
     el.style.height = Math.min(el.scrollHeight, 200) + 'px'
   }, [input])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!modelDropdownRef.current?.contains(e.target as Node)) {
+        setShowModelDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const fetchModels = async () => {
+    if (models.length > 0) return
+    const base = settings.apiEndpoint.replace(/\/+$/, '')
+    const url = (base.includes('/v1') ? base : base + '/v1') + '/models'
+    try {
+      const res = await fetch(url, {
+        headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
+      })
+      if (res.ok) {
+        const data = await res.json()
+        const list = data.data?.map((m: any) => m.id).filter(Boolean) || []
+        setModels(list)
+      }
+    } catch {}
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files) return
+    const newAttachments: FileAttachment[] = []
+    for (const file of files) {
+      try {
+        const att = await readFile(file)
+        newAttachments.push(att)
+      } catch (err) {
+        console.error('Failed to read file:', file.name, err)
+      }
+    }
+    setAttachments(prev => [...prev, ...newAttachments])
+    e.target.value = ''
+  }
+
+  const handleRemoveAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(a => a.id !== id))
+  }
 
   const handleSend = async () => {
     if (!input.trim() || loading) return
@@ -111,24 +165,38 @@ export default function ChatView({ conversation, settings, skills, connected, on
 
     const activeConv = conversation ?? onDraftSubmit!(question)
 
+    const updated = { ...activeConv }
+    let needsTitle = updated.title === 'New conversation'
+
+    // Add attachment messages first
+    for (const att of attachments) {
+      const attMsg: Message = {
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        role: 'user',
+        content: att.content,
+        timestamp: Date.now(),
+        attachments: [att],
+      }
+      updated.messages = [...updated.messages, attMsg]
+    }
+
+    // Add user text message
     const userMsg: Message = {
-      id: Date.now().toString(36),
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       role: 'user',
       content: question,
       timestamp: Date.now(),
     }
-
-    const updated = { ...activeConv }
     updated.messages = [...updated.messages, userMsg]
-    const needsTitle = updated.title === 'New conversation'
     if (needsTitle) {
       onRename(activeConv.id, question.slice(0, 40))
     }
     onUpdateConversation(updated)
+    setAttachments([])
 
     setLoading(true)
     const assistantMsg: Message = {
-      id: Date.now().toString(36) + 'a',
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
       role: 'assistant',
       content: '',
       timestamp: Date.now(),
@@ -258,6 +326,21 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
       {/* Composer */}
       <div className="bg-background px-4 py-4">
         <div className="mx-auto max-w-6xl">
+          {/* File chips */}
+          {attachments.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-1.5">
+              {attachments.map(att => (
+                <div key={att.id} className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-foreground/80">
+                  <span className="truncate max-w-[120px]">{att.name}</span>
+                  <span className="text-muted-foreground/50">{formatFileSize(att.size)}</span>
+                  <button onClick={() => handleRemoveAttachment(att.id)} className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="group relative flex items-end gap-2 rounded-2xl border border-border bg-card p-2 shadow-soft transition focus-within:border-primary/50 focus-within:shadow-glow">
             {showCmd && (
               <div className="absolute bottom-full left-0 right-0 mb-2 rounded-xl border border-border bg-card shadow-lift overflow-hidden">
@@ -281,6 +364,63 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                 ))}
               </div>
             )}
+
+            {/* Paperclip */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-40"
+              title="Attach file"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+
+            {/* Playbook */}
+            <Playbook
+              prompts={settings.playbook}
+              onInsert={text => setInput(prev => prev + (prev ? '\n' : '') + text)}
+              onSave={playbook => onUpdateSettings({ ...settings, playbook })}
+            />
+
+            {/* Model switcher */}
+            <div className="relative" ref={modelDropdownRef}>
+              <button
+                onClick={() => { setShowModelDropdown(v => !v); fetchModels() }}
+                disabled={loading}
+                className="flex h-9 items-center gap-1 rounded-xl border border-border bg-secondary/60 px-2.5 text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-40"
+              >
+                <Bot className="h-3.5 w-3.5" />
+                <span className="max-w-[80px] truncate">{settings.model || 'Model'}</span>
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {showModelDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 w-48 rounded-xl border border-border bg-card shadow-lift overflow-hidden">
+                  {models.length === 0 ? (
+                    <div className="px-3 py-2 text-xs text-muted-foreground/60">No models found</div>
+                  ) : (
+                    models.map(m => (
+                      <button
+                        key={m}
+                        onClick={() => { onUpdateSettings({ ...settings, model: m }); setShowModelDropdown(false) }}
+                        className={`w-full px-3 py-2 text-left text-xs transition hover:bg-secondary/60 ${
+                          m === settings.model ? 'text-primary font-medium' : 'text-foreground/80'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
             <textarea
               ref={taRef}
               value={input}
@@ -334,7 +474,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
               }}
             />
             <button onClick={handleSend}
-                    disabled={!input.trim() || loading}
+                    disabled={(!input.trim() && attachments.length === 0) || loading}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft transition enabled:hover:shadow-glow disabled:opacity-40"
                     aria-label="Send">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

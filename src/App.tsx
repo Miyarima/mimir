@@ -576,6 +576,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             onUpdateConversation={handleUpdateConversation}
             onRename={handleRenameConversation}
             onStartResearch={handleStartResearch}
+            onUpdateSettings={setSettings}
           />
         ) : draftId ? (
           <ChatView
@@ -587,6 +588,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             onRename={handleRenameConversation}
             onStartResearch={handleStartResearch}
             onDraftSubmit={handleDraftSubmit}
+            onUpdateSettings={setSettings}
           />
         ) : null}
       </main>

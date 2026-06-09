@@ -1,5 +1,6 @@
-import { User, Globe } from 'lucide-react'
+import { User, Globe, FileText, Image } from 'lucide-react'
 import type { Message } from '../types'
+import { isImage, formatFileSize } from '../services/file'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkMath from 'remark-math'
@@ -27,6 +28,29 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <img src="/logo.svg" alt="Mimir" className="mt-0.5 h-8 w-8 shrink-0" />
       )}
       <div className={`flex flex-col ${isUser ? 'items-end' : 'items-start'} max-w-[75%]`}>
+        {/* Attachments */}
+        {message.attachments && message.attachments.length > 0 && (
+          <div className="mb-2 flex flex-col gap-1.5">
+            {message.attachments.map(att => (
+              <div key={att.id} className="flex items-center gap-2 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs">
+                {isImage(att.type) ? (
+                  <>
+                    <Image className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">{att.name}</span>
+                    <span className="text-muted-foreground/50">{formatFileSize(att.size)}</span>
+                    <img src={att.content} alt={att.name} className="mt-1 max-h-32 max-w-full rounded-lg object-contain" />
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-3.5 w-3.5 text-muted-foreground" />
+                    <span className="text-muted-foreground">{att.name}</span>
+                    <span className="text-muted-foreground/50">{formatFileSize(att.size)}</span>
+                  </>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <div className={`px-4 py-3 text-sm leading-relaxed ${
           isUser
             ? 'bg-primary text-primary-foreground rounded-2xl rounded-tr-md'

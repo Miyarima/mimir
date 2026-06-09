@@ -10,6 +10,7 @@ export interface Settings {
   researchDepth: number
   crawl4aiEndpoint: string
   autoStartCrawl4AI: boolean
+  playbook: PlaybookPrompt[]
 }
 
 export type ResearchStage = 'generating_queries' | 'searching' | 'analyzing' | 'reporting' | 'complete'
@@ -27,12 +28,28 @@ export interface ResearchProgress {
 
 export type MessageRole = 'user' | 'assistant' | 'system'
 
+export interface FileAttachment {
+  id: string
+  name: string
+  type: string
+  content: string
+  size: number
+}
+
+export interface PlaybookPrompt {
+  id: string
+  name: string
+  text: string
+  isBuiltin: boolean
+}
+
 export interface Message {
   id: string
   role: MessageRole
   content: string
   timestamp: number
   sources?: Source[]
+  attachments?: FileAttachment[]
 }
 
 export interface Source {

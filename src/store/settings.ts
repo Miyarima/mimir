@@ -12,6 +12,12 @@ export const defaultSettings: Settings = {
   researchDepth: 2,
   crawl4aiEndpoint: 'http://localhost:8000',
   autoStartCrawl4AI: false,
+  playbook: [
+    { id: 'builtin-1', name: 'Summarize', text: 'Summarize the following content in 3-5 bullet points:', isBuiltin: true },
+    { id: 'builtin-2', name: 'Explain code', text: 'Explain what this code does step by step:', isBuiltin: true },
+    { id: 'builtin-3', name: 'Debug', text: 'Find and explain any bugs or issues in this code:', isBuiltin: true },
+    { id: 'builtin-4', name: 'Translate to English', text: 'Translate the following to English:', isBuiltin: true },
+  ],
 }
 
 export async function loadSettings(): Promise<Settings> {
