@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     loadMessages: (conversationId: string) => ipcRenderer.invoke('db:load-messages', conversationId),
     createConversation: (conv: { id: string; title: string; isResearch: boolean }) => ipcRenderer.invoke('db:create-conversation', conv),
     updateConversation: (conv: { id: string; messages: { id: string; role: string; content: string; sources?: unknown; timestamp: number }[] }) => ipcRenderer.invoke('db:update-conversation', conv),
+    updateConversationFields: (id: string, fields: { pinned?: boolean; tags?: string[]; lastReadAt?: number; toolChain?: { calls: unknown[]; isActive: boolean } }) => ipcRenderer.invoke('db:update-conversation-fields', id, fields),
     renameConversation: (id: string, title: string) => ipcRenderer.invoke('db:rename-conversation', id, title),
     deleteConversation: (id: string) => ipcRenderer.invoke('db:delete-conversation', id),
     loadSettings: () => ipcRenderer.invoke('db:load-settings'),
@@ -24,5 +25,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     start: (endpoint?: string) => ipcRenderer.invoke('crawl4ai:start', endpoint),
     stop: () => ipcRenderer.invoke('crawl4ai:stop'),
     isStarting: () => ipcRenderer.invoke('crawl4ai:is-starting'),
+  },
+
+  tools: {
+    execute: (name: string, args: Record<string, unknown>, whitelist: string[]) => ipcRenderer.invoke('tools:execute', name, args, whitelist),
   },
 })

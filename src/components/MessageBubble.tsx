@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { User, Globe, FileText, Image } from 'lucide-react'
 import type { Message } from '../types'
 import { isImage, formatFileSize } from '../services/file'
@@ -11,11 +12,19 @@ function sanitize(text: string): string {
   return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u0080-\u009F\u00AD\u200B-\u200D\uFEFF\u2060-\u2064\u2066-\u2069]/g, '')
 }
 
+function sanitizeHref(href: string | undefined): string | undefined {
+  if (!href) return undefined
+  if (/^(javascript|data|vbscript):/i.test(href)) return undefined
+  return href
+}
+
+
+
 interface MessageBubbleProps {
   message: Message
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
+function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -64,10 +73,13 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
                 remarkPlugins={[remarkMath, remarkGfm]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
-                  a: ({ href, children }) => (
-                    <a href={href} target="_blank" rel="noopener noreferrer"
-                       className="text-primary hover:underline">{children}</a>
-                  ),
+                  a: ({ href, children }) => {
+                    const safe = sanitizeHref(href)
+                    return safe ? (
+                      <a href={safe} target="_blank" rel="noopener noreferrer"
+                         className="text-primary hover:underline">{children}</a>
+                    ) : <span className="text-primary">{children}</span>
+                  },
                   code: ({ children }) => (
                     <code className="rounded border border-border bg-secondary/60 px-1.5 py-0.5 font-mono text-[12px]">{children}</code>
                   ),
@@ -91,16 +103,26 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         </div>
         {message.sources && message.sources.length > 0 && (
           <div className="mt-2.5 flex flex-wrap gap-1.5">
-            {message.sources.map((s, i) => (
-              <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
-                 className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary">
-                <Globe size={10} />
-                <span className="max-w-[120px] truncate">{s.title}</span>
-              </a>
-            ))}
+            {message.sources.map((s, i) => {
+              const safe = sanitizeHref(s.url)
+              return safe ? (
+                <a key={i} href={safe} target="_blank" rel="noopener noreferrer"
+                   className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary">
+                  <Globe size={10} />
+                  <span className="max-w-[120px] truncate">{s.title}</span>
+                </a>
+              ) : (
+                <span key={i} className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-muted-foreground">
+                  <Globe size={10} />
+                  <span className="max-w-[120px] truncate">{s.title}</span>
+                </span>
+              )
+            })}
           </div>
         )}
       </div>
     </div>
   )
 }
+
+export default memo(MessageBubble)

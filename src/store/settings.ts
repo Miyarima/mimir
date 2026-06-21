@@ -18,6 +18,14 @@ export const defaultSettings: Settings = {
     { id: 'builtin-3', name: 'Debug', text: 'Find and explain any bugs or issues in this code:', isBuiltin: true },
     { id: 'builtin-4', name: 'Translate to English', text: 'Translate the following to English:', isBuiltin: true },
   ],
+  tools: {
+    enabled: false,
+    readFile: true,
+    writeFile: true,
+    listDirectory: true,
+    shell: true,
+    shellWhitelist: ['ls', 'cat', 'pwd', 'echo', 'git status', 'git diff', 'git log', 'npm list', 'node -v'],
+  },
 }
 
 export async function loadSettings(): Promise<Settings> {

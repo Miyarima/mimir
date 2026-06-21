@@ -11,6 +11,13 @@ function sanitize(text: string): string {
   return text.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F\u0080-\u009F\u00AD\u200B-\u200D\uFEFF\u2060-\u2064\u2066-\u2069]/g, '')
 }
 
+function sanitizeHref(href: string | undefined): string | undefined {
+  if (!href) return undefined
+  const lower = href.trim().toLowerCase()
+  if (lower.startsWith('javascript:') || lower.startsWith('data:') || lower.startsWith('vbscript:')) return '#'
+  return href
+}
+
 type TimelineEntry =
   | { type: 'queries'; queries: string[]; depth: number; breadth: number }
   | { type: 'sources'; query: string; sources: Source[] }
@@ -54,7 +61,7 @@ export default function ResearchView({
     } else {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
-  })
+  }, [loading, report])
 
   const timeline: TimelineEntry[] = []
 
@@ -121,7 +128,7 @@ export default function ResearchView({
             <p className="text-sm font-medium text-foreground">Found {entry.sources.length} results</p>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {entry.sources.map((s, i) => (
-                <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                <a key={i} href={sanitizeHref(s.url)} target="_blank" rel="noopener noreferrer"
                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/40 px-2 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary">
                   <Globe size={10} />
                   <span className="max-w-[140px] truncate">{(() => { try { return new URL(s.url).hostname.replace('www.', '') } catch { return s.url } })()}</span>
@@ -147,7 +154,7 @@ export default function ResearchView({
             {entry.sources.length > 0 && (
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {entry.sources.map((s, i) => (
-                  <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                  <a key={i} href={sanitizeHref(s.url)} target="_blank" rel="noopener noreferrer"
                      className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary">
                     <ExternalLink size={10} />
                     <span className="max-w-[140px] truncate">{s.title}</span>
@@ -353,7 +360,7 @@ export default function ResearchView({
                           {step.sources.length > 0 && (
                             <div className="flex flex-wrap gap-1.5">
                               {step.sources.map((s, i) => (
-                                <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                                <a key={i} href={sanitizeHref(s.url)} target="_blank" rel="noopener noreferrer"
                                    className="inline-flex items-center gap-1 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-primary">
                                   <ExternalLink size={10} />
                                   <span className="max-w-[180px] truncate">{s.title}</span>
@@ -381,7 +388,7 @@ export default function ResearchView({
                       ul: ({ children }) => <ul className="list-disc pl-5 mb-3.5 text-sm text-muted-foreground space-y-1.5">{children}</ul>,
                       ol: ({ children }) => <ol className="list-decimal pl-5 mb-3.5 text-sm text-muted-foreground space-y-1.5">{children}</ol>,
                       a: ({ href, children }) => (
-                        <a href={href} target="_blank" rel="noopener noreferrer"
+                        <a href={sanitizeHref(href)} target="_blank" rel="noopener noreferrer"
                            className="text-primary hover:underline">{children}</a>
                       ),
                       strong: ({ children }) => <strong className="font-semibold text-foreground">{children}</strong>,

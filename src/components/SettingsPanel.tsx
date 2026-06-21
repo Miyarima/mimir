@@ -1,22 +1,23 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2, RefreshCw, Palette } from 'lucide-react'
+import { ArrowLeft, KeyRound, Brain, Globe, Database, SlidersHorizontal, ChevronRight, Layers, GitBranch, Container, Play, Square, Loader2, RefreshCw, Palette, Wrench } from 'lucide-react'
 import type { Crawl4AIStatus, Settings } from '../types'
 
 interface SettingsPanelProps {
   settings: Settings
   onUpdate: (settings: Settings) => void
   onClose: () => void
+  apiOk: boolean | null
+  checkingApi: boolean
+  checkApi: () => void
 }
 
 type SettingKey = keyof Settings
 
-export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsPanelProps) {
+export default function SettingsPanel({ settings, onUpdate, onClose, apiOk, checkingApi, checkApi }: SettingsPanelProps) {
   const [models, setModels] = useState<string[]>([])
   const [loadingModels, setLoadingModels] = useState(false)
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const [providerOpen, setProviderOpen] = useState(false)
-  const [apiOk, setApiOk] = useState<boolean | null>(null)
-  const [checkingApi, setCheckingApi] = useState(false)
   const modelDropdownRef = useRef<HTMLDivElement>(null)
   const providerRef = useRef<HTMLDivElement>(null)
 
@@ -45,35 +46,6 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [providerOpen])
-
-  async function checkApi(ep: string) {
-    if (!ep) { setApiOk(null); return }
-    setCheckingApi(true)
-    setApiOk(null)
-    const started = Date.now()
-    const base = ep.replace(/\/+$/, '')
-    const urls = base.includes('/v1')
-      ? [`${base}/models`, base.replace(/\/v1.*/, '')]
-      : [`${base}/models`, `${base}/v1/models`, base]
-    let ok = false
-    for (const url of urls) {
-      try {
-        const res = await fetch(url, {
-          signal: AbortSignal.timeout(3000),
-          headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
-        })
-        if (res.ok || res.status !== 0) { ok = true; break }
-      } catch {}
-    }
-    setApiOk(ok)
-    const elapsed = Date.now() - started
-    if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed))
-    setCheckingApi(false)
-  }
-
-  useEffect(() => {
-    checkApi(settings.apiEndpoint)
-  }, [settings.apiEndpoint])
 
   useEffect(() => {
     if (!settings.apiEndpoint) return
@@ -114,7 +86,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
   }, [settings.apiEndpoint, settings.apiKey])
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
+    <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground font-mono">
       <header className="flex h-14 items-center gap-3 border-b border-border px-4">
         <button onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-secondary hover:text-foreground"
@@ -166,7 +138,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                       <span>No endpoint</span>
                     </span>
                   )}
-                  <button onClick={() => checkApi(settings.apiEndpoint)}
+                  <button onClick={checkApi}
                           className="flex items-center rounded-md border border-border p-1 text-muted-foreground/60 transition hover:bg-secondary hover:text-foreground/80"
                           title="Check endpoint">
                     <RefreshCw className={`h-3 w-3 ${checkingApi ? 'animate-spin' : ''}`} />
@@ -303,10 +275,10 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                 </div>
                 <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1">
                   <button onClick={() => update('researchBreadth', Math.max(2, settings.researchBreadth - 1))}
-                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm">−</button>
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/40">−</button>
                   <span className="w-6 text-center text-sm font-medium tabular-nums text-foreground">{settings.researchBreadth}</span>
                   <button onClick={() => update('researchBreadth', Math.min(10, settings.researchBreadth + 1))}
-                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm">+</button>
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/40">+</button>
                 </div>
               </div>
               <div className="mx-4 h-px bg-border" />
@@ -320,10 +292,10 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
                 </div>
                 <div className="flex items-center gap-1 rounded-lg border border-border bg-background px-2.5 py-1">
                   <button onClick={() => update('researchDepth', Math.max(1, settings.researchDepth - 1))}
-                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm">−</button>
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/40">−</button>
                   <span className="w-6 text-center text-sm font-medium tabular-nums text-foreground">{settings.researchDepth}</span>
                   <button onClick={() => update('researchDepth', Math.min(5, settings.researchDepth + 1))}
-                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm">+</button>
+                          className="flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition hover:bg-secondary hover:text-foreground text-sm focus:outline-none focus:ring-1 focus:ring-primary/40">+</button>
                 </div>
               </div>
             </div>
@@ -331,6 +303,71 @@ export default function SettingsPanel({ settings, onUpdate, onClose }: SettingsP
 
           {/* Crawl4AI */}
           <Crawl4AISection settings={settings} onUpdate={update} />
+
+          {/* Tools */}
+          <section className="mb-8">
+            <h2 className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Wrench className="h-3.5 w-3.5" />
+              Tools
+            </h2>
+            <div className="rounded-2xl border border-border bg-card/60">
+              <div className="flex items-center gap-3 px-4 py-3.5">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
+                  <Wrench className="h-4 w-4" />
+                </span>
+                <div className="flex flex-1 flex-col">
+                  <span className="text-sm font-medium text-foreground/90">Enable Tools</span>
+                  <span className="text-xs text-muted-foreground">Allow AI to read/write files, list directories, and run shell commands</span>
+                </div>
+                <button onClick={() => update('tools', { ...settings.tools, enabled: !settings.tools.enabled })}
+                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus:outline-none focus:ring-1 focus:ring-primary/40 ${
+                          settings.tools.enabled ? 'border-primary bg-primary' : 'border-border bg-secondary'
+                        }`}>
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow-sm transition-transform ${
+                    settings.tools.enabled ? 'translate-x-[18px]' : 'translate-x-[2px]'
+                  }`} />
+                </button>
+              </div>
+              {settings.tools.enabled && (
+                <>
+                  <div className="mx-4 h-px bg-border" />
+                  {[
+                    { key: 'readFile' as const, label: 'Read files', desc: 'AI can read file contents' },
+                    { key: 'writeFile' as const, label: 'Write files', desc: 'AI can create or modify files' },
+                    { key: 'listDirectory' as const, label: 'List directories', desc: 'AI can browse folder contents' },
+                    { key: 'shell' as const, label: 'Run shell commands', desc: 'AI can execute commands (whitelisted + approval)' },
+                  ].map(t => (
+                    <div key={t.key} className="flex items-center gap-3 px-4 py-2.5">
+                      <div className="flex flex-1 flex-col">
+                        <span className="text-xs font-medium text-foreground/90">{t.label}</span>
+                        <span className="text-[11px] text-muted-foreground">{t.desc}</span>
+                      </div>
+                      <button onClick={() => update('tools', { ...settings.tools, [t.key]: !settings.tools[t.key] })}
+                              className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border transition-colors focus:outline-none focus:ring-1 focus:ring-primary/40 ${
+                                settings.tools[t.key] ? 'border-primary bg-primary' : 'border-border bg-secondary'
+                              }`}>
+                        <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-background shadow-sm transition-transform ${
+                          settings.tools[t.key] ? 'translate-x-[14px]' : 'translate-x-[2px]'
+                        }`} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="mx-4 h-px bg-border" />
+                  <div className="px-4 py-3.5">
+                    <span className="text-xs font-medium text-foreground/90">Shell command whitelist</span>
+                    <span className="text-[11px] text-muted-foreground block mb-2">Commands that can run without approval (first word must match)</span>
+                    <textarea
+                      value={settings.tools.shellWhitelist.join('\n')}
+                      onChange={e => update('tools', { ...settings.tools, shellWhitelist: e.target.value.split('\n').filter(s => s.trim()) })}
+                      rows={4}
+                      placeholder="ls&#10;cat&#10;pwd&#10;git status"
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-xs font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </section>
 
           {/* Theme */}
           <ThemeSection theme={settings.theme} onSelect={v => update('theme', v)} />

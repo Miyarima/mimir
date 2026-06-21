@@ -11,6 +11,16 @@ export interface Settings {
   crawl4aiEndpoint: string
   autoStartCrawl4AI: boolean
   playbook: PlaybookPrompt[]
+  tools: ToolSettings
+}
+
+export interface ToolSettings {
+  enabled: boolean
+  readFile: boolean
+  writeFile: boolean
+  listDirectory: boolean
+  shell: boolean
+  shellWhitelist: string[]
 }
 
 export type ResearchStage = 'generating_queries' | 'searching' | 'analyzing' | 'reporting' | 'complete'
@@ -50,6 +60,29 @@ export interface Message {
   timestamp: number
   sources?: Source[]
   attachments?: FileAttachment[]
+  toolCalls?: ToolCall[]
+  toolCallId?: string
+}
+
+export interface ToolCall {
+  id: string
+  name: string
+  arguments: string
+  result?: ToolResult
+  pendingApproval?: boolean
+  startTime?: number
+  endTime?: number
+  status?: 'pending' | 'running' | 'success' | 'error'
+}
+
+export interface ToolResult {
+  success: boolean
+  output: string
+}
+
+export interface ToolChain {
+  calls: ToolCall[]
+  isActive: boolean
 }
 
 export interface Source {
@@ -82,7 +115,11 @@ export interface Conversation {
   updatedAt: number
   isResearch: boolean
   archived: boolean
+  pinned?: boolean
+  tags?: string[]
+  lastReadAt?: number
   researchResult?: ResearchResult
+  toolChain?: ToolChain
 }
 
 export interface ConversationListItem {
@@ -91,6 +128,10 @@ export interface ConversationListItem {
   isResearch: boolean
   createdAt: number
   updatedAt: number
+  pinned?: boolean
+  tags?: string[]
+  lastReadAt?: number
+  toolChain?: { calls: ToolCall[]; isActive: boolean }
 }
 
 export interface Skill {
@@ -122,6 +163,7 @@ declare global {
         loadMessages: (conversationId: string) => Promise<Message[]>
         createConversation: (conv: { id: string; title: string; isResearch: boolean }) => Promise<void>
         updateConversation: (conv: { id: string; messages: Message[] }) => Promise<void>
+        updateConversationFields: (id: string, fields: { pinned?: boolean; tags?: string[]; lastReadAt?: number; toolChain?: { calls: ToolCall[]; isActive: boolean } }) => Promise<void>
         renameConversation: (id: string, title: string) => Promise<void>
         deleteConversation: (id: string) => Promise<void>
         loadSettings: () => Promise<Record<string, string>>
@@ -136,6 +178,19 @@ declare global {
         stop: () => Promise<boolean>
         isStarting: () => Promise<boolean>
       }
+      tools: {
+        execute: (name: string, args: Record<string, unknown>, whitelist: string[]) => Promise<{ success: boolean; output: string }>
+      }
     }
   }
 }
+
+export const CONVERSATION_TAGS = [
+  { id: 'work', label: 'Work', color: 'primary' },
+  { id: 'research', label: 'Research', color: 'secondary' },
+  { id: 'ideas', label: 'Ideas', color: 'accent' },
+  { id: 'personal', label: 'Personal', color: 'muted' },
+  { id: 'code', label: 'Code', color: 'destructive' },
+] as const
+
+export type ConversationTagId = typeof CONVERSATION_TAGS[number]['id']

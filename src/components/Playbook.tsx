@@ -44,7 +44,7 @@ export default function Playbook({ prompts, onInsert, onSave }: PlaybookProps) {
   const custom = prompts.filter(p => !p.isBuiltin)
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative font-mono" ref={ref}>
       <button
         onClick={() => setOpen(v => !v)}
         className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground"

@@ -1,7 +1,8 @@
 import { app, BrowserWindow, ipcMain, dialog, screen } from 'electron'
 import path from 'path'
 import { exec } from 'child_process'
-import { initDatabase, loadConversations, createConversation, updateConversation, renameConversation, deleteConversation, loadMessages, loadSettings, saveSetting, loadSkills, saveSkill, deleteSkill } from './database'
+import { initDatabase, loadConversations, createConversation, updateConversation, renameConversation, deleteConversation, loadMessages, loadSettings, saveSetting, loadSkills, saveSkill, deleteSkill, updateConversationFields } from './database'
+import { executeTool } from './tools'
 import { checkStatus, startCrawl4AI, stopCrawl4AI, isStarting } from './crawl4ai'
 
 let mainWindow: BrowserWindow | null = null
@@ -159,6 +160,10 @@ ipcMain.handle('db:load-conversations', () => {
     isResearch: !!r.is_research,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
+    pinned: r.pinned === 1,
+    tags: r.tags ? JSON.parse(r.tags) : [],
+    lastReadAt: r.last_read_at,
+    toolChain: r.tool_chain ? JSON.parse(r.tool_chain) : { calls: [], isActive: false },
     messages: [],
   }))
 })
@@ -187,6 +192,10 @@ ipcMain.handle('db:update-conversation', (_, conv: { id: string; messages: { id:
 
 ipcMain.handle('db:rename-conversation', (_, id: string, title: string) => {
   renameConversation(id, title)
+})
+
+ipcMain.handle('db:update-conversation-fields', (_, id: string, fields: { pinned?: boolean; tags?: string[]; lastReadAt?: number; toolChain?: { calls: unknown[]; isActive: boolean } }) => {
+  updateConversationFields(id, fields)
 })
 
 ipcMain.handle('db:delete-conversation', (_, id: string) => {
@@ -238,4 +247,9 @@ ipcMain.handle('crawl4ai:stop', async () => {
 
 ipcMain.handle('crawl4ai:is-starting', () => {
   return isStarting()
+})
+
+// Tool execution IPC handler
+ipcMain.handle('tools:execute', async (_, name: string, args: Record<string, unknown>, whitelist: string[]) => {
+  return executeTool(name, args, whitelist)
 })

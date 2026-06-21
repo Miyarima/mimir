@@ -6,12 +6,14 @@ let client: OpenAI | null = null
 export function getClient(settings: Settings): OpenAI {
   let baseURL = settings.apiEndpoint.replace(/\/+$/, '')
   if (!baseURL.endsWith('/v1')) baseURL += '/v1'
-  if (client && client.baseURL === baseURL) return client
+  const cacheKey = `${baseURL}|${settings.apiKey || ''}`
+  if (client && (client as any).__cacheKey === cacheKey) return client
   client = new OpenAI({
     baseURL,
     apiKey: settings.apiKey || 'sk-dummy',
     dangerouslyAllowBrowser: true,
   })
+  ;(client as any).__cacheKey = cacheKey
   return client
 }
 

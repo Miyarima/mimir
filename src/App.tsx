@@ -79,7 +79,7 @@ export default function App() {
     for (const url of urls) {
       try {
         const res = await fetch(url, {
-          signal: AbortSignal.timeout(5000),
+          signal: AbortSignal.timeout(3000),
           headers: settings.apiKey ? { Authorization: `Bearer ${settings.apiKey}` } : {},
         })
         if (res.ok || res.status !== 0) { ok = true; break }
@@ -196,6 +196,31 @@ export default function App() {
     setDraftId(null)
     setShowSettings(false)
     setShowKnowledgeBase(false)
+    // Mark as read
+    const now = Date.now()
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, lastReadAt: now } : c))
+    if (window.electronAPI?.db) {
+      window.electronAPI.db.updateConversationFields(id, { lastReadAt: now })
+    }
+  }, [])
+
+  const handlePinConversation = useCallback((id: string) => {
+    setConversations(prev => {
+      const conv = prev.find(c => c.id === id)
+      if (!conv) return prev
+      const newPinned = !conv.pinned
+      if (window.electronAPI?.db) {
+        window.electronAPI.db.updateConversationFields(id, { pinned: newPinned })
+      }
+      return prev.map(c => c.id === id ? { ...c, pinned: newPinned } : c)
+    })
+  }, [])
+
+  const handleUpdateTags = useCallback((id: string, tags: string[]) => {
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, tags } : c))
+    if (window.electronAPI?.db) {
+      window.electronAPI.db.updateConversationFields(id, { tags })
+    }
   }, [])
 
   const handleKnowledgeBase = useCallback(() => {
@@ -236,14 +261,15 @@ export default function App() {
     setConversations(prev => {
       const filtered = prev.filter(c => c.id !== id)
       if (activeId === id) {
-        const nextId = filtered[0]?.id || createConversation().id
-        setActiveId(nextId)
-        if (!filtered[0]) {
+        if (filtered[0]) {
+          setActiveId(filtered[0].id)
+        } else {
           const fresh = createConversation()
           if (window.electronAPI?.db) {
             window.electronAPI.db.createConversation({ id: fresh.id, title: fresh.title, isResearch: false })
           }
           filtered.push(fresh)
+          setActiveId(fresh.id)
         }
       }
       return filtered
@@ -251,9 +277,20 @@ export default function App() {
   }, [activeId])
 
   const handleUpdateConversation = useCallback((conv: Conversation) => {
-    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, messages: conv.messages, updatedAt: Date.now() } : c))
+    const now = Date.now()
+    // Only mark as read if the user is currently viewing this conversation
+    const isActive = activeId === conv.id
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, messages: conv.messages, updatedAt: now, lastReadAt: isActive ? now : c.lastReadAt } : c))
     persistConversation({ ...conv, messages: conv.messages })
-  }, [persistConversation])
+    if (window.electronAPI?.db) {
+      if (isActive) {
+        window.electronAPI.db.updateConversationFields(conv.id, { lastReadAt: now })
+      }
+      if (conv.toolChain) {
+        window.electronAPI.db.updateConversationFields(conv.id, { toolChain: conv.toolChain })
+      }
+    }
+  }, [persistConversation, activeId])
 
   const handleRenameConversation = useCallback(async (id: string, title: string) => {
     setConversations(prev => prev.map(c => c.id === id ? { ...c, title } : c))
@@ -468,15 +505,18 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
         onDelete={handleDeleteConversation}
         onRename={handleRenameConversation}
         onArchive={handleArchiveConversation}
+        onPin={handlePinConversation}
+        onUpdateTags={handleUpdateTags}
         onSettings={() => { setShowSettings(true); setShowKnowledgeBase(false) }}
         onKnowledgeBase={handleKnowledgeBase}
         showSettings={showSettings}
         showKnowledgeBase={showKnowledgeBase}
         sidebarOpen={sidebarOpen}
+        model={settings.model}
       />
 
       <main className="relative flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4"
+        <header className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4 font-mono"
                 style={{ WebkitAppRegion: 'drag' } as any}>
           <div className="flex min-w-0 items-center gap-2" style={{ WebkitAppRegion: 'no-drag' } as any}>
             <button
@@ -489,7 +529,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
               </svg>
             </button>
             <h1 className="min-w-0 truncate text-sm font-medium text-foreground/90">
-              {showKnowledgeBase ? 'Knowledge Base' : activeConv?.title || 'New conversation'}
+              {activeConv?.title || 'New conversation'}
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-1.5" style={{ WebkitAppRegion: 'no-drag' } as any}>
@@ -540,6 +580,9 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             settings={settings}
             onUpdate={setSettings}
             onClose={() => setShowSettings(false)}
+            apiOk={connectionStatus === 'connected' ? true : connectionStatus === 'disconnected' ? false : null}
+            checkingApi={connectionStatus === 'checking'}
+            checkApi={checkConnection}
           />
         ) : showKnowledgeBase ? (
           <KnowledgeBase

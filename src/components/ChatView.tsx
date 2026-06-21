@@ -1,9 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Sparkles, Search, Terminal, MessageSquare, Loader2, Paperclip, ChevronDown, Bot, X } from 'lucide-react'
+import { Send, Sparkles, Search, Terminal, MessageSquare, Loader2, Paperclip, ChevronDown, Bot, X, Wrench, Check, XCircle } from 'lucide-react'
 import MessageBubble from './MessageBubble'
 import Playbook from './Playbook'
-import type { Message, Conversation, Settings, FileAttachment, PlaybookPrompt } from '../types'
-import { chat, buildMessagesWithSkills } from '../services/api'
+import ToolActivityPanel from './ToolActivityPanel'
+import type { Message, Conversation, Settings, FileAttachment, PlaybookPrompt, ToolCall } from '../types'
+import { chat, chatWithTools, buildMessagesWithSkills } from '../services/api'
 import type { Skill } from '../types'
 import { readFile, formatFileSize } from '../services/file'
 
@@ -40,6 +41,8 @@ export default function ChatView({ conversation, settings, skills, connected, on
   const [attachments, setAttachments] = useState<FileAttachment[]>([])
   const [showModelDropdown, setShowModelDropdown] = useState(false)
   const [models, setModels] = useState<string[]>([])
+  const [pendingToolCall, setPendingToolCall] = useState<{ name: string; args: Record<string, unknown> } | null>(null)
+  const [toolChain, setToolChain] = useState<{ calls: ToolCall[]; isActive: boolean }>({ calls: [], isActive: false })
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const taRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -50,6 +53,15 @@ export default function ChatView({ conversation, settings, skills, connected, on
   useEffect(() => {
     if (!showCmd) setCmdIndex(0)
   }, [showCmd])
+
+  // Sync tool chain from conversation
+  useEffect(() => {
+    if (conversation?.toolChain) {
+      setToolChain(conversation.toolChain)
+    } else {
+      setToolChain({ calls: [], isActive: false })
+    }
+  }, [conversation?.id, conversation?.toolChain])
 
   const selectCommand = (name: string) => {
     setInput(name + ' ')
@@ -218,13 +230,170 @@ export default function ChatView({ conversation, settings, skills, connected, on
     )
 
     try {
+      const toolsEnabled = settings.tools?.enabled ?? false
+      const enabledToolNames: string[] = []
+      if (toolsEnabled) {
+        if (settings.tools.readFile) enabledToolNames.push('read_file')
+        if (settings.tools.writeFile) enabledToolNames.push('write_file')
+        if (settings.tools.listDirectory) enabledToolNames.push('list_directory')
+        if (settings.tools.shell) enabledToolNames.push('run_shell')
+      }
+
+      // apiMessages: used only for the API call, includes tool calls/results
+      // messages: what's actually stored in the conversation
+      let apiMessages = [...updated.messages].map(m => ({ ...m }))
+      const toolChainCalls: ToolCall[] = []
+      let toolChainActive = false
       let fullContent = ''
-      await chat(settings, history, (chunk) => {
-        fullContent += chunk
-        const msgs = [...updated.messages]
-        msgs[msgs.length - 1] = { ...assistantMsg, content: fullContent }
-        onUpdateConversation({ ...updated, messages: msgs })
-      })
+      let continueLoop = true
+      let iterations = 0
+      const maxIterations = 10
+
+      // Helper to update the tool chain in the conversation and local state
+      const updateToolChain = (calls: ToolCall[], isActive: boolean) => {
+        setToolChain({ calls: [...calls], isActive })
+        onUpdateConversation({ ...updated, messages: updated.messages, toolChain: { calls: [...calls], isActive } })
+      }
+
+      while (continueLoop && iterations < maxIterations) {
+        iterations++
+
+        const apiPayload = apiMessages
+          .filter(m => m.role !== 'system' || true)
+          .map(m => {
+            if (m.role === 'tool') {
+              return { role: 'tool' as const, content: m.content, tool_call_id: m.toolCallId || '' }
+            }
+            if (m.toolCalls && m.toolCalls.length > 0) {
+              return {
+                role: 'assistant' as const,
+                content: m.content || null,
+                tool_calls: m.toolCalls.map(tc => ({
+                  id: tc.id,
+                  type: 'function' as const,
+                  function: { name: tc.name, arguments: tc.arguments },
+                })),
+              }
+            }
+            return { role: m.role as 'user' | 'assistant' | 'system', content: m.content }
+          })
+
+        const lastAssistantContent = apiMessages.filter(m => m.role === 'assistant').pop()?.content
+        const finalMessages = buildMessagesWithSkills(
+          apiPayload.map(m => {
+            if (m.role === 'tool') return { role: 'user' as const, content: m.content }
+            if (m.role === 'assistant' && (m as any).tool_calls) {
+              return { role: 'assistant' as const, content: (m as any).content || '' }
+            }
+            return { role: m.role, content: m.content as string }
+          }),
+          skills,
+          question,
+          lastAssistantContent,
+        )
+
+        // For streaming updates, show partial content
+        let streamedContent = ''
+
+        const { content, toolCalls } = await chatWithTools(settings, finalMessages as any, enabledToolNames, (chunk) => {
+          streamedContent += chunk
+          fullContent = streamedContent
+        })
+
+        if (toolCalls.length === 0) {
+          continueLoop = false
+          break
+        }
+
+        // Add tool calls to the chain with running status
+        for (const tc of toolCalls) {
+          const toolCallEntry: ToolCall = {
+            id: tc.id,
+            name: tc.name,
+            arguments: tc.arguments,
+            status: 'running',
+            startTime: Date.now(),
+          }
+          toolChainCalls.push(toolCallEntry)
+        }
+        toolChainActive = true
+        updateToolChain([...toolChainCalls], true)
+
+        // Add to apiMessages for the next iteration
+        const assistantApiMsg: Message = {
+          id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+          role: 'assistant',
+          content: content,
+          timestamp: Date.now(),
+          toolCalls: toolCalls.map(tc => ({
+            id: tc.id,
+            name: tc.name,
+            arguments: tc.arguments,
+          })),
+        }
+        apiMessages = [...apiMessages, assistantApiMsg]
+
+        for (const tc of toolCalls) {
+          let args: Record<string, unknown> = {}
+          try { args = JSON.parse(tc.arguments) } catch {}
+
+          if (tc.name === 'run_shell') {
+            const command = String(args.command || '')
+            const cmdBase = command.trim().split(/\s+/)[0]
+            const whitelist = settings.tools.shellWhitelist || []
+            if (!whitelist.includes(cmdBase)) {
+              setPendingToolCall({ name: tc.name, args })
+              await new Promise<void>((resolve) => {
+                const check = () => {
+                  if (!document.querySelector('[data-tool-approval-dialog]')) {
+                    resolve()
+                  } else {
+                    setTimeout(check, 100)
+                  }
+                }
+                check()
+              })
+            }
+          }
+
+          if (!window.electronAPI?.tools) continue
+          const result = await window.electronAPI.tools.execute(tc.name, args, settings.tools.shellWhitelist || [])
+
+          // Update the tool call in the chain with the result
+          const tcIndex = toolChainCalls.findIndex(c => c.id === tc.id)
+          if (tcIndex >= 0) {
+            toolChainCalls[tcIndex] = {
+              ...toolChainCalls[tcIndex],
+              result: { success: result.success, output: result.output },
+              status: result.success ? 'success' : 'error',
+              endTime: Date.now(),
+            }
+            updateToolChain([...toolChainCalls], true)
+          }
+
+          // Add to apiMessages for the next iteration
+          const toolResultMsg: Message = {
+            id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+            role: 'tool',
+            content: result.success ? result.output : `Error: ${result.output}`,
+            timestamp: Date.now(),
+            toolCallId: tc.id,
+          }
+          apiMessages = [...apiMessages, toolResultMsg]
+        }
+      }
+
+      // All done — mark tool chain as inactive
+      toolChainActive = false
+      const finalToolChain = { calls: toolChainCalls, isActive: false }
+
+      // Add the final assistant message
+      const finalAssistantMsg: Message = {
+        ...assistantMsg,
+        content: fullContent,
+      }
+      updated.messages = [...updated.messages, finalAssistantMsg]
+      onUpdateConversation({ ...updated, toolChain: finalToolChain })
 
       if (needsTitle && fullContent) {
         const base = settings.apiEndpoint.replace(/\/+$/, '')
@@ -293,11 +462,11 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
               Works with any OpenAI-compatible local model
             </p>
 
-            <div className="mt-8 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="mt-8 grid w-full grid-cols-1 gap-2 sm:grid-cols-2 font-mono">
               {suggestions.map(s => (
                 <button key={s.label}
                         onClick={() => setInput(s.label)}
-                        className="group flex items-center gap-3 rounded-xl border border-border bg-card/60 px-3.5 py-3 text-left text-sm text-foreground/90 transition hover:border-primary/40 hover:bg-card">
+                        className="group flex items-center gap-3 rounded-xl border border-border bg-card/60 px-3.5 py-3 text-left text-sm text-foreground/90 transition hover:border-primary/40 hover:bg-card focus:outline-none focus:ring-1 focus:ring-primary/40">
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-secondary text-primary transition group-hover:bg-primary/15">
                     <s.icon className="h-4 w-4" />
                   </span>
@@ -313,9 +482,19 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
         <div className="relative flex-1 min-h-0">
           <div className="absolute inset-0 overflow-y-auto px-6 py-6">
             <div className="mx-auto max-w-6xl space-y-5">
-              {conversation!.messages.map(msg => (
-                <MessageBubble key={msg.id} message={msg} />
+              {conversation!.messages.map((msg, idx) => (
+                <div key={msg.id}>
+                  <MessageBubble message={msg} />
+                  {/* Render tool activity panel after the user message that triggered it */}
+                  {msg.role === 'user' && conversation!.toolChain && conversation!.toolChain.calls.length > 0 && idx === conversation!.messages.length - 2 && (
+                    <ToolActivityPanel toolChain={conversation!.toolChain} />
+                  )}
+                </div>
               ))}
+              {/* Show current tool chain while loading (before assistant message is added) */}
+              {loading && toolChain.calls.length > 0 && (
+                <ToolActivityPanel toolChain={toolChain} />
+              )}
               <div ref={messagesEndRef} />
             </div>
           </div>
@@ -333,7 +512,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                 <div key={att.id} className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary/60 px-2.5 py-1 text-xs text-foreground/80">
                   <span className="truncate max-w-[120px]">{att.name}</span>
                   <span className="text-muted-foreground/50">{formatFileSize(att.size)}</span>
-                  <button onClick={() => handleRemoveAttachment(att.id)} className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive">
+                  <button onClick={() => handleRemoveAttachment(att.id)} className="flex h-4 w-4 items-center justify-center rounded text-muted-foreground/50 hover:text-destructive focus:outline-none focus:ring-1 focus:ring-destructive/40">
                     <X className="h-3 w-3" />
                   </button>
                 </div>
@@ -348,7 +527,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                   <button key={cmd.name}
                           onMouseDown={e => { e.preventDefault(); selectCommand(cmd.name) }}
                           onMouseEnter={() => setCmdIndex(i)}
-                          className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm transition ${
+                          className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left text-sm transition focus:outline-none ${
                             i === cmdIndex ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary/60'
                           }`}>
                     <span className={`flex h-6 w-6 items-center justify-center rounded-md text-[11px] font-mono font-medium ${
@@ -369,7 +548,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={loading}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-40"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition hover:bg-secondary hover:text-foreground disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-primary/40"
               title="Attach file"
             >
               <Paperclip className="h-4 w-4" />
@@ -390,11 +569,11 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             />
 
             {/* Model switcher */}
-            <div className="relative" ref={modelDropdownRef}>
+            <div className="relative font-mono" ref={modelDropdownRef}>
               <button
                 onClick={() => { setShowModelDropdown(v => !v); fetchModels() }}
                 disabled={loading}
-                className="flex h-9 items-center gap-1 rounded-xl border border-border bg-secondary/60 px-2.5 text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-40"
+                className="flex h-9 items-center gap-1 rounded-xl border border-border bg-secondary/60 px-2.5 text-xs text-muted-foreground transition hover:text-foreground disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-primary/40"
               >
                 <Bot className="h-3.5 w-3.5" />
                 <span className="max-w-[80px] truncate">{settings.model || 'Model'}</span>
@@ -409,7 +588,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                       <button
                         key={m}
                         onClick={() => { onUpdateSettings({ ...settings, model: m }); setShowModelDropdown(false) }}
-                        className={`w-full px-3 py-2 text-left text-xs transition hover:bg-secondary/60 ${
+                        className={`w-full px-3 py-2 text-left text-xs transition hover:bg-secondary/60 focus:outline-none focus:bg-secondary/60 ${
                           m === settings.model ? 'text-primary font-medium' : 'text-foreground/80'
                         }`}
                       >
@@ -475,7 +654,7 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
             />
             <button onClick={handleSend}
                     disabled={(!input.trim() && attachments.length === 0) || loading}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft transition enabled:hover:shadow-glow disabled:opacity-40"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-primary text-primary-foreground shadow-soft transition enabled:hover:shadow-glow disabled:opacity-40 focus:outline-none focus:ring-1 focus:ring-primary/40"
                     aria-label="Send">
               {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </button>
@@ -508,9 +687,71 @@ Short title (2-5 words, no quotes, no punctuation, no explanation):`,
                 </ul>
               )}
               <button onClick={() => setShowDisconnected(false)}
-                      className="rounded-lg border border-border bg-secondary px-4 py-1.5 text-xs text-foreground transition hover:bg-secondary/80">
+                      className="rounded-lg border border-border bg-secondary px-4 py-1.5 text-xs text-foreground transition hover:bg-secondary/80 focus:outline-none focus:ring-1 focus:ring-primary/40">
                 OK
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingToolCall && (
+        <div data-tool-approval-dialog
+             className="absolute inset-0 z-50 flex items-center justify-center bg-background/80"
+             onClick={() => setPendingToolCall(null)}>
+          <div className="w-96 rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/10">
+                  <Wrench className="h-5 w-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Tool Approval Required</h3>
+                  <p className="text-xs text-muted-foreground">The AI wants to run a command not in the whitelist</p>
+                </div>
+              </div>
+              <div className="rounded-lg border border-border bg-secondary/40 p-3">
+                <p className="text-xs font-mono text-foreground break-all">
+                  {String(pendingToolCall.args.command || '')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 justify-end">
+                <button onClick={() => setPendingToolCall(null)}
+                        className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs text-foreground transition hover:bg-secondary/80 focus:outline-none focus:ring-1 focus:ring-primary/40">
+                  <XCircle className="h-3.5 w-3.5" />
+                  Deny
+                </button>
+                <button onClick={async () => {
+                          if (window.electronAPI?.tools) {
+                            const result = await window.electronAPI.tools.execute(
+                              pendingToolCall.name,
+                              pendingToolCall.args,
+                              settings.tools.shellWhitelist || []
+                            )
+                            const newWhitelist = [...(settings.tools.shellWhitelist || []), String(pendingToolCall.args.command || '').trim().split(/\s+/)[0]]
+                            onUpdateSettings({ ...settings, tools: { ...settings.tools, shellWhitelist: Array.from(new Set(newWhitelist)) } })
+                          }
+                          setPendingToolCall(null)
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs text-foreground transition hover:bg-secondary/80 focus:outline-none focus:ring-1 focus:ring-primary/40">
+                  <Check className="h-3.5 w-3.5" />
+                  Allow & Whitelist
+                </button>
+                <button onClick={async () => {
+                          if (window.electronAPI?.tools) {
+                            await window.electronAPI.tools.execute(
+                              pendingToolCall.name,
+                              pendingToolCall.args,
+                              settings.tools.shellWhitelist || []
+                            )
+                          }
+                          setPendingToolCall(null)
+                        }}
+                        className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs text-primary-foreground transition hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-primary/40">
+                  <Check className="h-3.5 w-3.5" />
+                  Allow Once
+                </button>
+              </div>
             </div>
           </div>
         </div>
